@@ -5,58 +5,48 @@
 #SBATCH --partition=m3a
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=4096
-#SBATCH --cpus-per-task=6
+#SBATCH --cpus-per-task=8
 #SBATCH --qos=normal
 
-#Created by Michael Nakai, 22/01/2019 for SLURM
+#Created by Michael Nakai, 22/01/2019 for command line Bash or SLURM on M3
 
 export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
-#Setting very basic arguments (masterpath is located here)
-masterpath="/home/mnak0010/dw30/Michael/Script_Masters/Master/Master.txt"
+#Setting very basic arguments (srcpath is located here)
+scriptdir=`dirname "$0"`
+srcpath="${scriptdir}/config.txt"
 
-if [ ! -f $masterpath ] ; then
-	echo "Master.txt does not exist at the specified filepath"
-	echo "Please change Master.txt path in this script"
-	echo "Open this script up and change the variable masterpath on line 17"
-	exit 10
-fi
-
-source $masterpath
-
-if [ ! -f $srcfile ] ; then
-	echo "The sourcefile does not currently exist at the filepath specified in Master.txt."
-	echo "Instead, a template sourcefile will be created where the script is located. Please"
-	echo "change the filepath in Master.txt to this file, and modify the created template with"
-	echo "your filepaths. Take note and preserve the last slashes (/) ONLY IF they are present"
-	echo "in the example."
+if [ ! -f $srcpath ] ; then
+	echo "A config file does not exist. Instead, a template config file will"
+	echo "be created where the script is located. Take note and preserve the" 
+	echo "last slashes (/) ONLY IF they are present in the example."
 	
-	touch sourcefile_template.txt
-	echo -e "#Filepaths here" >> sourcefile_template.txt
-	echo -e "projpath=/home/username/folder with raw-data, metadata, and outputs folders/" >> sourcefile_template.txt
-	echo -e "filepath=/home/username/folder with raw-data, metadata, and outputs folders/raw-data" >> sourcefile_template.txt
-	echo -e "qzaoutput=/home/username/folder with raw-data, metadata, and outputs folders/outputs/" >> sourcefile_template.txt
-	echo -e "metadata_filepath=/home/username/folder with raw-data, metadata, and outputs folders/metadata/metadata.tsv\n" >> sourcefile_template.txt
-	echo -e "#If using a manifest file, use the manifest filepath here" >> sourcefile_template.txt
-	echo -e "manifest=filepath=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv" >> sourcefile_template.txt
-	echo -e "#Choose how much to trim/trunc here. All combinations of trim/trunc will be done (Dada2)" >> sourcefile_template.txt
-	echo -e "trimF=0" >> sourcefile_template.txt
-	echo -e "trimR=0" >> sourcefile_template.txt
-	echo -e "truncF=() #Trunc combinations here. Ex: (250 240 230)" >> sourcefile_template.txt
-	echo -e "truncR=() #Trunc combinations here. Ex: (200 215 180)\n" >> sourcefile_template.txt
-	echo -e "#Determine your sampling depth for core-metrics-phylogenetic here. You do not want to exclude too many samples" >> sourcefile_template.txt
-	echo -e "sampling_depth=0\n" >> sourcefile_template.txt
-	echo -e "#Determine your max depth for the alpha rarefaction here." >> sourcefile_template.txt
-	echo -e "alpha_depth=0\n" >> sourcefile_template.txt
-	echo -e "#Path to the trained classifier for sk-learn" >> sourcefile_template.txt
-	echo -e "classifierpath=/home/username/classifier.qza" >> sourcefile_template.txt
-	echo -e "#Do not change this" >> sourcefile_template.txt
-	echo -e "demuxpairedendpath=${qzaoutput}imported_seqs.qza\n" >> sourcefile_template.txt
+	touch config.txt
+	echo -e "#Filepaths here" >> config.txt
+	echo -e "projpath=/home/username/folder with raw-data, metadata, and outputs folders/" >> config.txt
+	echo -e "filepath=/home/username/folder with raw-data, metadata, and outputs folders/raw-data" >> config.txt
+	echo -e "qzaoutput=/home/username/folder with raw-data, metadata, and outputs folders/outputs/" >> config.txt
+	echo -e "metadata_filepath=/home/username/folder with raw-data, metadata, and outputs folders/metadata/metadata.tsv\n" >> config.txt
+	echo -e "#If using a manifest file, use the manifest filepath here" >> config.txt
+	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv" >> config.txt
+	echo -e "#Choose how much to trim/trunc here. All combinations of trim/trunc will be done (Dada2)" >> config.txt
+	echo -e "trimF=0" >> config.txt
+	echo -e "trimR=0" >> config.txt
+	echo -e "truncF=() #Trunc combinations here. Ex: (250 240 230)" >> config.txt
+	echo -e "truncR=() #Trunc combinations here. Ex: (200 215 180)\n" >> config.txt
+	echo -e "#Determine your sampling depth for core-metrics-phylogenetic here. You do not want to exclude too many samples" >> config.txt
+	echo -e "sampling_depth=0\n" >> config.txt
+	echo -e "#Determine your max depth for the alpha rarefaction here." >> config.txt
+	echo -e "alpha_depth=0\n" >> config.txt
+	echo -e "#Path to the trained classifier for sk-learn" >> config.txt
+	echo -e "classifierpath=/home/username/classifier.qza" >> config.txt
+	echo -e "#Do not change this" >> config.txt
+	echo -e "demuxpairedendpath=${qzaoutput}imported_seqs.qza\n" >> config.txt
 	exit 11
 fi
 
-source $srcfile
+source $srcpath
 
 
 #---------------------------------------------------------------------------------------------------
@@ -71,6 +61,7 @@ tst=false
 hlp=false
 manifest_status=false
 show_functions=false
+train_classifier=false
 
 #Let's set the option flags here
 for op
@@ -87,11 +78,14 @@ do
 	if [ "$op" == "-t" ] ; then
 		tst=true
 	fi
-	if [ "$op" == "-h" ] || [ "$op" == "help" ] ; then
+	if [ "$op" == "-h" ] || [ "$op" == "--help" ] ; then
 		hlp=true
 	fi
 	if [ "$op" == "-f" ] ; then
 		show_functions=true
+	fi
+	if [ "$op" == "-c" ] || [ "$op" == "--train_classifier" ] ; then
+		train_classifier=true
 	fi
 done
 
@@ -102,11 +96,11 @@ if [[ "$hlp" = true ]] ; then
 	echo "-------------------"
 	echo "This script runs the Qiime2 pipeline (without extensive analysis)"
 	echo "and outputs core-metrics-phylogenetic and taxa-bar-plots. It "
-	echo "pulls variables from a sourcefile specified in Master.txt."
+	echo "pulls variables from a config file specified in Master.txt."
 	echo ""
 	echo "OPTIONS"
 	echo "-------------------"
-	echo -e "-m\tUse manifest file to import sequences, as specified in the sourcefile"
+	echo -e "-m\tUse manifest file to import sequences, as specified in the config file"
 	echo -e "-v\tVerbose script output"
 	echo -e "-t\tTest the progress flags and exit before executing any qiime commands"
 	echo -e "-l\tEnable logging to a log file that is made where this script is"
@@ -592,7 +586,7 @@ fi
 #Check whether classifier path refers to an actual file or not
 if [ ! -f $classifierpath ] ; then
 	echo "File does not exist at the classifier path"
-	echo "Please change classifier path in the sourcefile (.txt file)"
+	echo "Please change classifier path in the config file (.txt file)"
 	exit 12
 fi
 
