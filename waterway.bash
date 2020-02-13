@@ -40,7 +40,14 @@ if [ ! -f $srcpath ] ; then
 	echo -e "#Determine your max depth for the alpha rarefaction here." >> config.txt
 	echo -e "alpha_depth=0\n" >> config.txt
 	echo -e "#Path to the trained classifier for sk-learn" >> config.txt
-	echo -e "classifierpath=/home/username/classifier.qza" >> config.txt
+	echo -e "classifierpath=/home/username/classifier.qza\n" >> config.txt
+	echo -e "#Set these settings if training a classifier" >> config.txt
+	echo -e "download_greengenes_files_for_me=false" >> config.txt
+	echo -e "greengenes_path=/home/username/dir_containing_greengenes_files/" >> config.txt
+	echo -e "forward_primer=GGGGGGGGGGGGGGGGGG" >> config.txt
+	echo -e "reverse_primer=AAAAAAAAAAAAAAAAAA" >> config.txt
+	echo -e "min_read_length=100" >> config.txt
+	echo -e "max_read_length=400\n\n" >> config.txt
 	echo -e "#Do not change this" >> config.txt
 	echo -e "demuxpairedendpath=${qzaoutput}imported_seqs.qza\n" >> config.txt
 	exit 11
@@ -105,6 +112,7 @@ if [[ "$hlp" = true ]] ; then
 	echo -e "-t\tTest the progress flags and exit before executing any qiime commands"
 	echo -e "-l\tEnable logging to a log file that is made where this script is"
 	echo -e "-f\tShow the exact list of functions used in this script and their output files"
+	echo -e "-t\tTrain a greengenes 13_5 99% coverage otu classifier."
 	echo -e "-h\tShow this help dialogue"
 	echo ""
 	exit 101
@@ -308,6 +316,129 @@ if [[ "$tst" = true || "$verbose" = true ]]; then
 fi
 
 #<<<<<<<<<<<<<END VERBOSE BLOCK<<<<<<<<<<<<<
+
+
+#>>>>>>>>>>>>TRAINING CLASSIFIER BLOCK>>>>>>>>>>>>>
+
+if [ "$train_classifier" = true ]; then
+
+	echo ""
+	echo "Starting classifier training on greengenes database..."
+	if [[ "$log" = true ]]; then
+		echo "Starting classifier training on greengenes database..." >&3
+	fi
+	
+	#Check to see whether variables have been inputted or changed from defaults
+	if [ ${forward_primer} -eq "GGGGGGGGGGGGGGGGGG" ] || [ ${reverse_primer} -eq "AAAAAAAAAAAAAAAAAA" ]; then 
+		echo "Forward or reverse primer not set, exiting..."
+		exit 8
+	fi
+	
+	if [ ${min_read_length} -eq "100" ] || [ ${max_read_length} -eq "400" ]; then 
+		echo "NOTE: MIN OR max_read_length IS LEFT AT DEFAULT"
+		if [[ "$log" = true ]]; then
+			echo "NOTE: MIN OR max_read_length IS LEFT AT DEFAULT" >&3
+		fi
+	fi
+
+	#Check to see if the greengenes files are downloaded at greengenes_path
+	if [ "$download_greengenes_files_for_me" = false ] || [ ! -d "${greengenes_path%?}" ]; then
+		echo "greengenes_path does not refer to a directory and download_greengenes_files_for_me is false"
+		echo "Please either fix the greengenes_path in the config file, or set"
+		echo "download_greengenes_files_for_me to true"
+		if [[ "$log" = true ]]; then
+			echo "greengenes_path does not refer to a directory and download_greengenes_files_for_me is false" >&3
+			echo "Please either fix the greengenes_path in the config file, or set" >&3
+			echo "download_greengenes_files_for_me to true" >&3
+		fi
+		exit 125
+	fi
+	
+	if [ "$download_greengenes_files_for_me" = false ] && { [ ! -f "${greengenes_path}gg_13_5.fasta.gz" ] || [ ! -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ] }; then
+		echo "You are missing either gg_13_5.fasta.gz or gg_13_5_taxonomy.txt.gz"
+		echo "Please download these first, set download_greengenes_files_for_me to true in the config,"
+		echo "or rename your files to these names if already downloaded."
+		if [[ "$log" = true ]]; then
+			echo "You are missing either gg_13_5.fasta.gz or gg_13_5_taxonomy.txt.gz" >&3
+			echo "Please download these first, set download_greengenes_files_for_me to true in the config," >&3
+			echo "or rename your files to these names if already downloaded." >&3
+		fi
+		exit 150
+	fi
+
+	#If download_greengenes_files_for_me is true, wget the files needed. Either way, set ggfasta and ggtaxonomy paths
+	if [ "$download_greengenes_files_for_me" = true ] || [ ! -f "${greengenes_path}gg_13_5.fasta.gz" ]; then
+		urllink="https://gg-sg-web.s3-us-west-2.amazonaws.com/downloads/greengenes_database/gg_13_5/gg_13_5.fasta.gz"
+		wget $urllink
+		ggfasta="${scriptdir}gg_13_5.fasta.gz"
+	fi
+	
+	if [ -f "${greengenes_path}gg_13_5.fasta.gz" ]; then
+		ggfasta="${greengenes_path}gg_13_5.fasta.gz"
+	fi
+	
+	if [ "$download_greengenes_files_for_me" = true ] || [ ! -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ]; then
+		urllink="https://gg-sg-web.s3-us-west-2.amazonaws.com/downloads/greengenes_database/gg_13_5/gg_13_5_taxonomy.txt.gz"
+		wget $urllink
+		ggtaxonomy="${scriptdir}gg_13_5_taxonomy.txt.gz"
+	fi
+	
+	if [ -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ]; then
+		ggtaxonomy="${greengenes_path}gg_13_5_taxonomy.txt.gz"
+	fi
+	
+	#Run the import commands
+	echo "Running initial file imports..."
+	if [[ "$log" = true ]]; then
+		echo "Running initial file imports..." >&3
+	fi
+	
+	qiime tools import \
+		--type 'FeatureData[Sequence]' \
+		--input-path $ggfasta \
+		--output-path "99_otus.qza"
+	
+	qiime tools import \
+		--type 'FeatureData[Taxonomy]' \
+		--input-format HeaderlessTSVTaxonomyFormat \
+		--input-path $ggtaxonomy \
+		--output-path "ref-taxonomy.qza"
+	
+	#Run the extractions
+	echo "Running read extractions..."
+	if [[ "$log" = true ]]; then
+		echo "Running read extractions..." >&3
+	fi
+	
+	qiime feature-classifier extract-reads \
+		--i-sequences "99_otus.qza" \
+		--p-f-primer $forward_primer \
+		--p-r-primer $reverse_primer \
+		--p-min-length $min_read_length \
+		--p-max-length $max_read_length \
+		--o-reads "extracted-reads.qza"
+		
+	#Train the classifier
+	echo "Training the naive bayes classifier..."
+	if [[ "$log" = true ]]; then
+		echo "Training the naive bayes classifier..." >&3
+	fi
+	
+	qiime feature-classifier fit-classifier-naive-bayes \
+		--i-reference-reads "extracted-reads.qza" \
+		--i-reference-taxonomy "ref-taxonomy.qza" \
+		--o-classifier classifier.qza
+		
+	echo "Finished training the classifier as classifier.qza"
+	if [[ "$log" = true ]]; then
+		echo "Finished training the classifier as classifier.qza" >&3
+	fi
+	
+	if [ -d "${greengenes_path%?}" ]; then
+		cp classifier.qza "${greengenes_path}classifier.qza"
+	fi
+fi
+
 
 #####################################################################################################
 #---------------------------------------------------------------------------------------------------#
