@@ -49,7 +49,7 @@ if [ ! -f $srcpath ] ; then
 	echo -e "min_read_length=100" >> config.txt
 	echo -e "max_read_length=400\n\n" >> config.txt
 	echo -e "#Do not change this" >> config.txt
-	echo -e "demuxpairedendpath=${qzaoutput}imported_seqs.qza\n" >> config.txt
+	echo -e 'demuxpairedendpath=${qzaoutput}imported_seqs.qza\n' >> config.txt
 	exit 11
 fi
 
@@ -284,11 +284,13 @@ fi
 echo ""
 
 #Find if tst or verbose is true, and run the codeblock if true
-if [[ "$tst" = true || "$verbose" = true ]]; then
+if [ "$tst" = true ] || [ "$verbose" = true ]; then
 	echo "manifest_status is $manifest_status"
 	if [[ "$manifest_status" = true ]]; then
 		echo "manifest is $manifest"
 	fi
+	echo "train_classifier is $train_classifier"
+	echo "download greengenes is $download_greengenes_files_for_me"
 	echo "import_done is $import_done"
 	echo "importvis_done is $importvis_done"
 	echo "dada2_done is $dada2_done"
@@ -301,6 +303,8 @@ if [[ "$tst" = true || "$verbose" = true ]]; then
 		if [[ "$manifest_status" = true ]]; then
 			echo "manifest is $manifest" >&3
 		fi
+		echo "train_classifier is $train_classifier" >&3
+		echo "download greengenes is $download_greengenes_files_for_me" >&3
 		echo "import_done is $import_done" >&3
 		echo "importvis_done is $importvis_done" >&3
 		echo "dada2_done is $dada2_done" >&3
@@ -329,20 +333,22 @@ if [ "$train_classifier" = true ]; then
 	fi
 	
 	#Check to see whether variables have been inputted or changed from defaults
-	if [ ${forward_primer} -eq "GGGGGGGGGGGGGGGGGG" ] || [ ${reverse_primer} -eq "AAAAAAAAAAAAAAAAAA" ]; then 
+	if [ "${forward_primer}" = "GGGGGGGGGGGGGGGGGG" ] || [ "${reverse_primer}" = "AAAAAAAAAAAAAAAAAA" ]; then 
 		echo "Forward or reverse primer not set, exiting..."
 		exit 8
 	fi
 	
-	if [ ${min_read_length} -eq "100" ] || [ ${max_read_length} -eq "400" ]; then 
-		echo "NOTE: MIN OR max_read_length IS LEFT AT DEFAULT"
+	if [ ${min_read_length} -eq "100" ] || [ ${max_read_length} -eq "400" ]; then
+		echo ""
+		echo "NOTE: min_read_length OR max_read_length IS LEFT AT DEFAULT"
 		if [[ "$log" = true ]]; then
-			echo "NOTE: MIN OR max_read_length IS LEFT AT DEFAULT" >&3
+			echo ""
+			echo "NOTE: min_read_length OR max_read_length IS LEFT AT DEFAULT" >&3
 		fi
 	fi
 
 	#Check to see if the greengenes files are downloaded at greengenes_path
-	if [ "$download_greengenes_files_for_me" = false ] || [ ! -d "${greengenes_path%?}" ]; then
+	if [ "$download_greengenes_files_for_me" = false ] && [ ! -d "${greengenes_path%?}" ]; then
 		echo "greengenes_path does not refer to a directory and download_greengenes_files_for_me is false"
 		echo "Please either fix the greengenes_path in the config file, or set"
 		echo "download_greengenes_files_for_me to true"
@@ -351,40 +357,136 @@ if [ "$train_classifier" = true ]; then
 			echo "Please either fix the greengenes_path in the config file, or set" >&3
 			echo "download_greengenes_files_for_me to true" >&3
 		fi
-		exit 125
+		exit 120
 	fi
 	
-	if [ "$download_greengenes_files_for_me" = false ] && { [ ! -f "${greengenes_path}gg_13_5.fasta.gz" ] || [ ! -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ] }; then
-		echo "You are missing either gg_13_5.fasta.gz or gg_13_5_taxonomy.txt.gz"
+	if [ "$download_greengenes_files_for_me" = false ] && [ ! -f "${greengenes_path}gg_13_5.fasta.gz" ]; then
+		echo "You are missing gg_13_5.fasta.gz"
 		echo "Please download these first, set download_greengenes_files_for_me to true in the config,"
 		echo "or rename your files to these names if already downloaded."
 		if [[ "$log" = true ]]; then
-			echo "You are missing either gg_13_5.fasta.gz or gg_13_5_taxonomy.txt.gz" >&3
+			echo "You are missing gg_13_5.fasta.gz" >&3
 			echo "Please download these first, set download_greengenes_files_for_me to true in the config," >&3
 			echo "or rename your files to these names if already downloaded." >&3
 		fi
-		exit 150
+		exit 121
+	fi
+	
+	if [ "$download_greengenes_files_for_me" = false ] && [ ! -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ]; then
+		echo "You are missing either gg_13_5_taxonomy.txt.gz"
+		echo "Please download these first, set download_greengenes_files_for_me to true in the config,"
+		echo "or rename your files to these names if already downloaded."
+		if [[ "$log" = true ]]; then
+			echo "You are missing gg_13_5_taxonomy.txt.gz" >&3
+			echo "Please download these first, set download_greengenes_files_for_me to true in the config," >&3
+			echo "or rename your files to these names if already downloaded." >&3
+		fi
+		exit 122
 	fi
 
 	#If download_greengenes_files_for_me is true, wget the files needed. Either way, set ggfasta and ggtaxonomy paths
-	if [ "$download_greengenes_files_for_me" = true ] || [ ! -f "${greengenes_path}gg_13_5.fasta.gz" ]; then
+	#CURRENT BUG: This downloads ggfasta and ggtaxonomy even if local gg_13_5.fasta or gg_13_5_taxonomy.txt (the gunzipped files) exist. Perhaps have conditions that set flags to true or false, then eval flags here?
+	
+	ggfastaGZ_exists=false
+	ggfasta_exists=false
+	ggtaxGZ_exists=false
+	ggtax_exists=false
+	usepath=false
+	
+	if [ -f "${greengenes_path}gg_13_5.fasta.gz" ] && [ -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ]; then
+		usepath=true
+	fi
+	
+	if [ -f "${greengenes_path}gg_13_5.fasta.gz" ] || [ -f "gg_13_5.fasta.gz" ]; then
+		ggfastaGZ_exists=true
+	fi
+	
+	if [ -f "${greengenes_path}gg_13_5.fasta" ] || [ -f "gg_13_5.fasta" ]; then
+		ggfasta_exists=true
+	fi
+	
+	if [ -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ] || [ -f "gg_13_5_taxonomy.txt.gz" ]; then
+		ggtaxGZ_exists=true
+	fi
+	
+	if [ -f "${greengenes_path}gg_13_5_taxonomy.txt" ] || [ -f "gg_13_5_taxonomy.txt" ]; then
+		ggtax_exists=true
+	fi
+	
+	if [ "$verbose" = true ]; then
+		echo "usepath = $usepath"
+		echo "ggfastaGZ_exists = $ggfastaGZ_exists"
+		echo "ggfasta_exists = $ggfasta_exists"
+		echo "ggtaxGZ_exists = $ggtaxGZ_exists"
+		echo "ggtax_exists = $ggtax_exists"
+	fi
+	
+	if [ "$download_greengenes_files_for_me" = true ]; then
 		urllink="https://gg-sg-web.s3-us-west-2.amazonaws.com/downloads/greengenes_database/gg_13_5/gg_13_5.fasta.gz"
-		wget $urllink
-		ggfasta="${scriptdir}gg_13_5.fasta.gz"
+		if [ "$usepath" = true ]; then
+			if [ "$ggfastaGZ_exists" = false ] && [ "$ggfasta_exists" = false ]; then
+				wget $urllink -o "${greengenes_path}/gg_13_5.fasta.gz"
+				ggfastaGZ_exists=true
+			fi
+			if [ "$ggfastaGZ_exists" = true ] && [ "$ggfasta_exists" = false ]; then
+				gunzip -k "${greengenes_path}/gg_13_5.fasta.gz"
+				ggfasta="${greengenes_path}/gg_13_5.fasta"
+			fi
+			if [ "$ggfasta_exists" = true ]; then
+				ggfasta="${greengenes_path}/gg_13_5.fasta"
+			fi
+		else
+			if [ "$ggfastaGZ_exists" = false ] && [ "$ggfasta_exists" = false ]; then
+				wget $urllink
+				ggfastaGZ_exists=true
+			fi
+			if [ "$ggfastaGZ_exists" = true ] && [ "$ggfasta_exists" = false ]; then
+				gunzip -k "${scriptdir}/gg_13_5.fasta.gz"
+				ggfasta="${scriptdir}/gg_13_5.fasta"
+			fi
+			if [ "$ggfasta_exists" = true ]; then
+				ggfasta="${scriptdir}/gg_13_5.fasta"
+			fi
+		fi
 	fi
 	
-	if [ -f "${greengenes_path}gg_13_5.fasta.gz" ]; then
-		ggfasta="${greengenes_path}gg_13_5.fasta.gz"
-	fi
-	
-	if [ "$download_greengenes_files_for_me" = true ] || [ ! -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ]; then
+	if [ "$download_greengenes_files_for_me" = true ]; then
 		urllink="https://gg-sg-web.s3-us-west-2.amazonaws.com/downloads/greengenes_database/gg_13_5/gg_13_5_taxonomy.txt.gz"
-		wget $urllink
-		ggtaxonomy="${scriptdir}gg_13_5_taxonomy.txt.gz"
+		if [ "$usepath" = true ]; then
+			if [ "$ggtaxGZ_exists" = false ] && [ "$ggtax_exists" = false ]; then
+				wget $urllink -o "${greengenes_path}/gg_13_5_taxonomy.txt.gz"
+				ggtaxGZ_exists=true
+			fi
+			if [ "$ggtaxGZ_exists" = true ] && [ "$ggtax_exists" = false ]; then
+				gunzip -k "${greengenes_path}/gg_13_5_taxonomy.txt.gz"
+				ggtaxonomy="${greengenes_path}/gg_13_5_taxonomy.txt"
+			fi
+			if [ "$ggtax_exists" = true ]; then
+				ggtaxonomy="${greengenes_path}/gg_13_5_taxonomy.txt"
+			fi
+		else
+			if [ "$ggtaxGZ_exists" = false ] && [ "$ggtax_exists" = false ]; then
+				wget $urllink
+				ggtaxGZ_exists=true
+			fi
+			if [ "$ggtaxGZ_exists" = true ] && [ "$ggtax_exists" = false ]; then
+				gunzip -k "${scriptdir}/gg_13_5_taxonomy.txt.gz"
+				ggtaxonomy="${scriptdir}/gg_13_5_taxonomy.txt"
+			fi
+			if [ "$ggtax_exists" = true ]; then
+				ggtaxonomy="${scriptdir}/gg_13_5_taxonomy.txt"
+			fi
+		fi
 	fi
 	
-	if [ -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ]; then
-		ggtaxonomy="${greengenes_path}gg_13_5_taxonomy.txt.gz"
+	if [ "$verbose" = true ]; then
+		echo "ggfasta is $ggfasta"
+		echo "ggtaxonomy is $ggtaxonomy"
+	fi
+	
+	if [ "$ggfasta" == "" ] || [ "$ggtaxonomy" == "" ]; then
+		echo "There was a problem with setting the fasta/taxonomy path. Please report this bug."
+		exit 199
 	fi
 	
 	#Run the import commands
@@ -437,7 +539,11 @@ if [ "$train_classifier" = true ]; then
 	if [ -d "${greengenes_path%?}" ]; then
 		cp classifier.qza "${greengenes_path}classifier.qza"
 	fi
+	
+	exit 60
 fi
+
+#<<<<<<<<<<<<<END TRAINING CLASSIFIER BLOCK<<<<<<<<<<<<<
 
 
 #####################################################################################################
