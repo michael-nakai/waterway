@@ -384,8 +384,7 @@ if [ "$train_classifier" = true ]; then
 		exit 122
 	fi
 
-	#If download_greengenes_files_for_me is true, wget the files needed. Either way, set ggfasta and ggtaxonomy paths
-	#CURRENT BUG: This downloads ggfasta and ggtaxonomy even if local gg_13_5.fasta or gg_13_5_taxonomy.txt (the gunzipped files) exist. Perhaps have conditions that set flags to true or false, then eval flags here?
+	#Figure out what exists and what doesn't. If download_greengenes_files_for_me is true, wget the files if needed.
 	
 	ggfastaGZ_exists=false
 	ggfasta_exists=false
@@ -530,15 +529,23 @@ if [ "$train_classifier" = true ]; then
 		--i-reference-reads "extracted-reads.qza" \
 		--i-reference-taxonomy "ref-taxonomy.qza" \
 		--o-classifier classifier.qza
-		
+	
 	echo "Finished training the classifier as classifier.qza"
 	if [[ "$log" = true ]]; then
 		echo "Finished training the classifier as classifier.qza" >&3
 	fi
 	
+	sed -i '/classifierpath=/c\classifierpath='"${scriptdir}/classifier.qza" "$srcpath"
 	if [ -d "${greengenes_path%?}" ]; then
 		cp classifier.qza "${greengenes_path}classifier.qza"
+		sed -i '/classifierpath=/c\classifierpath='"${greengenes_path}classifier.qza" "$srcpath"
 	fi
+	
+	echo "Changed the classifier path in the config file"
+	if [[ "$log" = true ]]; then
+		echo "Changed the classifier path in the config file" >&3
+	fi
+	
 	
 	exit 60
 fi
