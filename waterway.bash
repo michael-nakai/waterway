@@ -537,7 +537,7 @@ if [ "$train_classifier" = true ]; then
 	
 	sed -i '/classifierpath=/c\classifierpath='"${scriptdir}/classifier.qza" "$srcpath"
 	if [ -d "${greengenes_path%?}" ]; then
-		cp classifier.qza "${greengenes_path}classifier.qza"
+		mv classifier.qza "${greengenes_path}classifier.qza"
 		sed -i '/classifierpath=/c\classifierpath='"${greengenes_path}classifier.qza" "$srcpath"
 	fi
 	
