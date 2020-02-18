@@ -16,6 +16,7 @@ export LANG="en_US.utf-8"
 #Setting very basic arguments (srcpath is located here)
 scriptdir=`dirname "$0"`
 srcpath="${scriptdir}/config.txt"
+analysis_path="${scriptdir}/analysis_to_rerun.txt"
 
 if [ ! -f $srcpath ] ; then
 	echo "A config file does not exist. Instead, a template config file will"
@@ -39,6 +40,8 @@ if [ ! -f $srcpath ] ; then
 	echo -e "sampling_depth=0\n" >> config.txt
 	echo -e "#Determine your max depth for the alpha rarefaction here." >> config.txt
 	echo -e "alpha_depth=0\n" >> config.txt
+	echo -e "#Determine what group you'd like to compare between for beta diversity. It needs to match the group name in the metadata exactly, caps sensitive." >> config.txt
+	echo -e "beta_diversity_group=Group_Here\n" >> config.txt
 	echo -e "#Path to the trained classifier for sk-learn" >> config.txt
 	echo -e "classifierpath=/home/username/classifier.qza\n" >> config.txt
 	echo -e "#Set these settings if training a classifier" >> config.txt
@@ -53,7 +56,20 @@ if [ ! -f $srcpath ] ; then
 	exit 11
 fi
 
+if [ ! -f $analysis_path ] ; then
+	echo "An analysis_to_rerun file does not exist. The file will be"
+	echo "created now. Please do not touch this file if this is the"
+	echo "first time analysing your data set."
+	
+	touch analysis_to_rerun.txt
+	
+	echo -e "#Beta analysis" >> analysis_to_rerun.txt
+	echo -e 'rerun_beta_analysis=${qzaoutput}imported_seqs.qza' >> analysis_to_rerun.txt
+	exit 11
+fi
+
 source $srcpath
+source $analysis_path
 
 
 #---------------------------------------------------------------------------------------------------
@@ -61,7 +77,7 @@ source $srcpath
 #---------------------------------------------------------------------------------------------------
 
 
-#>>>>>>>>>>>>OPTIONS BLOCK>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>OPTIONS BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 verbose=false
 log=false
 tst=false
@@ -69,30 +85,38 @@ hlp=false
 manifest_status=false
 show_functions=false
 train_classifier=false
+single_end_reads=false
+graphs=true
 
 #Let's set the option flags here
 for op
 do
-	if [ "$op" == "-v" ] ; then
+	if [ "$op" == "-v" ] || [ "$op" == "--verbose" ] ; then
 		verbose=true
 	fi
-	if [ "$op" == "-l" ] ; then
+	if [ "$op" == "-l" ] || [ "$op" == "--log" ] ; then
 		log=true
 	fi
-	if [ "$op" == "-m" ] ; then
+	if [ "$op" == "-m" ] || [ "$op" == "--manifest" ] ; then
 		manifest_status=true
 	fi
-	if [ "$op" == "-t" ] ; then
+	if [ "$op" == "-t" ] || [ "$op" == "--test" ] ; then
 		tst=true
 	fi
 	if [ "$op" == "-h" ] || [ "$op" == "--help" ] ; then
 		hlp=true
 	fi
-	if [ "$op" == "-f" ] ; then
+	if [ "$op" == "-f" ] || [ "$op" == "--show_functions" ] ; then
 		show_functions=true
 	fi
 	if [ "$op" == "-c" ] || [ "$op" == "--train_classifier" ] ; then
 		train_classifier=true
+	fi
+	if [ "$op" == "-s" ] || [ "$op" == "--single_end" ] ; then
+		single_end_reads=true
+	fi
+	if [ "$op" == "-g" ] || [ "$op" == "--graphs" ] ; then
+		graphs=true
 	fi
 done
 
@@ -112,7 +136,7 @@ if [[ "$hlp" = true ]] ; then
 	echo -e "-t\tTest the progress flags and exit before executing any qiime commands"
 	echo -e "-l\tEnable logging to a log file that is made where this script is"
 	echo -e "-f\tShow the exact list of functions used in this script and their output files"
-	echo -e "-t\tTrain a greengenes 13_5 99% coverage otu classifier."
+	echo -e "-c\tTrain a greengenes 13_5 99% coverage otu classifier."
 	echo -e "-h\tShow this help dialogue"
 	echo ""
 	exit 101
@@ -168,7 +192,7 @@ if [[ "$log" = true ]]; then
 	exec 1>>"${name}.out" 2>&1
 fi
 
-#>>>>>>>>>>>>TESTING BLOCK>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>TESTING BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 #Figuring out where in the process we got to
 import_done=false
 importvis_done=false
@@ -276,10 +300,10 @@ if [ "$divanalysis_done" = true ]; then
 	fi
 fi
 
-#<<<<<<<<<<<<<END TESTING BLOCK<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END TESTING BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
-#>>>>>>>>>>>>VERBOSE/TEST VARIABLES>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>VERBOSE/TEST VARIABLES>>>>>>>>>>>>>>>>
 
 echo ""
 
@@ -319,10 +343,45 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 	fi
 fi
 
-#<<<<<<<<<<<<<END VERBOSE BLOCK<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END VERBOSE BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
-#>>>>>>>>>>>>TRAINING CLASSIFIER BLOCK>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>RERUN BLOCK>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$rerun_beta_analysis" = true ]; then
+	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
+	do
+	
+		#Defining qzaoutput2
+		qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
+		
+		echo "Starting beta diversity analysis"
+		
+		qiime diversity beta-group-significance \
+			--i-distance-matrix "${qzaoutput2}core_metrics_results/unweighted_unifrac_distance_matrix.qza" \
+			--m-metadata-file $metadata_filepath \
+			--m-metadata-column $beta_diversity_group \
+			--o-visualization "${qzaoutput2}core_metrics_results/unweighted-unifrac-beta-significance.qzv" \
+			--p-pairwise
+			
+		qiime diversity beta-group-significance \
+			--i-distance-matrix "${qzaoutput2}core_metrics_results/weighted_unifrac_distance_matrix.qza" \
+			--m-metadata-file $metadata_filepath \
+			--m-metadata-column $beta_diversity_group \
+			--o-visualization "${qzaoutput2}core_metrics_results/weighted-unifrac-beta-significance.qzv" \
+			--p-pairwise
+			
+		echo "Finished beta diversity analysis"
+		
+	done
+	exit 0
+fi
+	
+
+#<<<<<<<<<<<<<<<<<<<<END VERBOSE BLOCK<<<<<<<<<<<<<<<<<<<<
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>TRAINING CLASSIFIER BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 
 if [ "$train_classifier" = true ]; then
 
@@ -551,7 +610,7 @@ if [ "$train_classifier" = true ]; then
 	exit 60
 fi
 
-#<<<<<<<<<<<<<END TRAINING CLASSIFIER BLOCK<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END TRAINING CLASSIFIER BLOCK<<<<<<<<<<<<<<<<<<<<
 
 
 #####################################################################################################
@@ -560,7 +619,7 @@ fi
 #---------------------------------------------------------------------------------------------------#
 #####################################################################################################
 
-#>>>>>>>>>>>>IMPORT>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>IMPORT>>>>>>>>>>>>>>>>>>>>>>>
 
 if [ "$import_done" = false ]; then
 	echo ""
@@ -637,9 +696,9 @@ if [ "$importvis_done" = false ]; then
 	fi
 fi
 
-#<<<<<<<<<<<<<END IMPORT BLOCK<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END IMPORT BLOCK<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
-#>>>>>>>>>>>>DADA2>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>DADA2>>>>>>>>>>>>>>>>>>>>>>>
 
 if [ "$dada2_done" = false ]; then
 	echo ""
@@ -727,9 +786,9 @@ if [ "$dada2_done" = false ]; then
 	fi
 fi
 
-#<<<<<<<<<<<<<END DADA2 BLOCK<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END DADA2 BLOCK<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
-#>>>>>>>>>>>>DIVERSITY>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>DIVERSITY>>>>>>>>>>>>>>>>>>>>>>>
 
 if [ "$tree_done" = false ]; then
 	echo ""
@@ -795,13 +854,46 @@ if [ "$divanalysis_done" = false ]; then
 			echo "Finished core-metrics-phylogenetic for ${qzaoutput2}" >&3
 		fi
 
+		if [[ "$verbose" = true ]]; then
+			echo "Starting alpha-group-significance and alpha-rarefaction"
+		fi
+
+		qiime diversity alpha-group-significance \
+			--i-alpha-diversity "${qzaoutput2}core_metrics_results/faith_pd_vector.qza" \
+			--m-metadata-file $metadata_filepath \
+			--o-visualization "${qzaoutput2}core_metrics_results/faith-pd-group-significance.qzv"
+
 		qiime diversity alpha-rarefaction \
 			--i-table "${qzaoutput2}table.qza" \
 			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
 			--p-max-depth $alpha_depth \
 			--m-metadata-file $metadata_filepath \
 			--o-visualization "${qzaoutput2}alpha-rarefaction.qzv"
+		
+		if [[ "$verbose" = true ]]; then
+			echo "Finished alpha-group-significance and alpha-rarefaction"
+		fi
+		
+		echo "Starting beta diversity analysis"
+		
+		qiime diversity beta-group-significance \
+			--i-distance-matrix "${qzaoutput2}core_metrics_results/unweighted_unifrac_distance_matrix.qza" \
+			--m-metadata-file $metadata_filepath \
+			--m-metadata-column $beta_diversity_group \
+			--o-visualization "${qzaoutput2}core_metrics_results/unweighted-unifrac-beta-significance.qzv" \
+			--p-pairwise
 			
+		qiime diversity beta-group-significance \
+			--i-distance-matrix "${qzaoutput2}core_metrics_results/weighted_unifrac_distance_matrix.qza" \
+			--m-metadata-file $metadata_filepath \
+			--m-metadata-column $beta_diversity_group \
+			--o-visualization "${qzaoutput2}core_metrics_results/weighted-unifrac-beta-significance.qzv" \
+			--p-pairwise
+		
+		if [[ "$verbose" = true ]]; then
+			echo "Finished beta diversity analysis"
+		fi
+
 		echo "Finished diversity analysis for ${qzaoutput2}"
 		if [[ "$log" = true ]]; then
 			echo "Finished diversity analysis for ${qzaoutput2}" >&3
@@ -816,9 +908,9 @@ if [ "$tree_done" = false ]; then
 	fi
 fi
 
-#<<<<<<<<<<<<<END DIVERSITY<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END DIVERSITY<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
-#>>>>>>>>>>>>SK_LEARN>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>SK_LEARN>>>>>>>>>>>>>>>>>>>>>>>
 
 if [ "$sklearn_done" = false ]; then
 	echo ""
@@ -878,7 +970,7 @@ if [ "$sklearn_done" = false ]; then
 	fi
 fi
 
-#<<<<<<<<<<<<<END SK_LEARN<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END SK_LEARN<<<<<<<<<<<<<<<<<<<<
 
 echo "Successful execution"
 if [[ "$log" = true ]]; then
