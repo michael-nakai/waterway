@@ -13,6 +13,9 @@
 export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
+#Version number here
+version="1.1.2"
+
 #Setting very basic arguments (srcpath is located here)
 scriptdir=`dirname "$0"`
 srcpath="${scriptdir}/config.txt"
@@ -117,6 +120,9 @@ do
 	fi
 	if [ "$op" == "-g" ] || [ "$op" == "--graphs" ] ; then
 		graphs=true
+	fi
+	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
+		echo "Currently running waterway $version"
 	fi
 done
 
