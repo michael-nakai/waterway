@@ -546,6 +546,7 @@ if [ "$train_classifier" = true ]; then
 		echo "Changed the classifier path in the config file" >&3
 	fi
 	
+	echo "Classifier block has finished"
 	
 	exit 60
 fi
