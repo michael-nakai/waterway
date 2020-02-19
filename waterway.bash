@@ -14,7 +14,7 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.1.2"
+version="1.2.1"
 
 #Setting very basic arguments (srcpath is located here)
 scriptdir=`dirname "$0"`
@@ -22,6 +22,7 @@ srcpath="${scriptdir}/config.txt"
 analysis_path="${scriptdir}/analysis_to_rerun.txt"
 
 if [ ! -f $srcpath ] ; then
+	echo ""
 	echo "A config file does not exist. Instead, a template config file will"
 	echo "be created where the script is located. Take note and preserve the" 
 	echo "last slashes (/) ONLY IF they are present in the example."
@@ -56,18 +57,16 @@ if [ ! -f $srcpath ] ; then
 	echo -e "max_read_length=400\n\n" >> config.txt
 	echo -e "#Do not change this" >> config.txt
 	echo -e 'demuxpairedendpath=${qzaoutput}imported_seqs.qza\n' >> config.txt
-	exit 11
-fi
 
-if [ ! -f $analysis_path ] ; then
-	echo "An analysis_to_rerun file does not exist. The file will be"
-	echo "created now. Please do not touch this file if this is the"
-	echo "first time analysing your data set."
+	echo ""
+	echo "An analysis_to_rerun file also will be created now. Please do not"
+	echo "touch this file if this is the first time analysing your data set."
+	echo ""
 	
 	touch analysis_to_rerun.txt
 	
 	echo -e "#Beta analysis" >> analysis_to_rerun.txt
-	echo -e 'rerun_beta_analysis=${qzaoutput}imported_seqs.qza' >> analysis_to_rerun.txt
+	echo -e 'rerun_beta_analysis=false' >> analysis_to_rerun.txt
 	exit 11
 fi
 
@@ -123,6 +122,7 @@ do
 	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
 		echo "Currently running waterway $version"
+		exit 0
 	fi
 done
 
@@ -345,7 +345,7 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 	
 	#If -t was set, exit here
 	if [[ "$tst" = true ]]; then
-		exit 100
+		exit 0
 	fi
 fi
 
