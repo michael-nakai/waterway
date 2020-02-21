@@ -72,7 +72,7 @@ if [ ! -f $srcpath ] ; then
 	echo -e "#Gneiss gradient-clustering analyses" >> optional_analyses.txt
 	echo -e "gneiss_gradient=false" >> optional_analyses.txt
 	echo -e "gradient_column='column in metadata to use here'" >> optional_analyses.txt
-	echo -e "gradient_column_extremes='column in metadata that only has either 'low' or 'high''" >> optional_analyses.txt
+	echo -e "gradient_column_categorical='column in metadata that only has either 'low' or 'high''" >> optional_analyses.txt
 	echo -e "taxa_level=0" >> optional_analyses.txt
 	echo -e "balance_name=none" >> optional_analyses.txt
 	exit 11
@@ -190,7 +190,7 @@ if [[ "$show_functions" = true ]] ; then
 fi
 	
 # Everything below these two codeblocks will go to a logfile
-name=log_pipeline
+name="waterway_log"
 if [[ -e $name.out ]] ; then
     i=0
     while [[ -e $name-$i.out ]] ; do
@@ -796,7 +796,7 @@ if [ "$dada2_done" = false ]; then
 	do
 		for e2 in ${truncR[@]}
 		do
-			mkdir "${qzaoutput}${e}-${e2}"
+			mkdir "${qzaoutput}${e}-${e2}" 2> /dev/null
 		done
 	done
 
@@ -1033,15 +1033,13 @@ if [ "$sklearn_done" = false ]; then
 		if [[ "$log" = true ]]; then
 			echo "Finished metadata_tabulate and taxa_barplot for $repqza" >&3
 		fi
-		
 	done
-fi
-
-if [ "$sklearn_done" = false ]; then
 	echo "Finished taxonomic analysis block"
+	echo ""
 	if [[ "$log" = true ]]; then
 		echo "Finished taxonomic analysis block" >&3
 	fi
+	sklearn_done=true
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END SK_LEARN<<<<<<<<<<<<<<<<<<<<
@@ -1059,15 +1057,30 @@ fi
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>OPTIONAL GNEISS GRADIENT CLUSTERING>>>>>>>>>>>>>>>>>>>>>>>
 
-if [ "$gneiss_gradient" = false ] && [ "$sklearn_done" = true ]; then
+if [ "$gneiss_gradient" = true ] && [ "$sklearn_done" = true ]; then
+	
+	echo "Starting Gneiss gradient-clustering analysis block..."
+	if [[ "$log" = true ]]; then
+		echo "Starting Gneiss gradient-clustering analysis block..." >&3
+	fi
+	if [[ "$verbose" = true ]]; then
+		echo "gradient_column is $gradient_column"
+		echo "metadata_filepath is $metadata_filepath"
+		echo "gradient_column_categorical is $gradient_column_categorical"
+		echo "taxa_level is $taxa_level"
+		echo "balance_name is $balance_name"
+	fi
+		
 	for repqza in ${qzaoutput}*/rep-seqs.qza
 	do
 		#Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
+		
+		mkdir "${qzaoutput2}gneiss_outputs" 2> /dev/null
 
 		qiime gneiss gradient-clustering \
 			--i-table "${qzaoutput2}table.qza" \
-			--m-gradient-file $metadata \
+			--m-gradient-file $metadata_filepath \
 			--m-gradient-column $gradient_column \
 			--o-clustering "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza"
   
@@ -1080,14 +1093,14 @@ if [ "$gneiss_gradient" = false ] && [ "$sklearn_done" = true ]; then
 			--p-formula $gradient_column \
 			--i-table "${qzaoutput2}gneiss_outputs/balances.qza" \
 			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
-			--m-metadata-file $metadata \
+			--m-metadata-file $metadata_filepath \
 			--o-visualization "${qzaoutput2}gneiss_outputs/regression_summary_pCG.qzv"
 
 		qiime gneiss dendrogram-heatmap \
 			--i-table "${qzaoutput2}table.qza" \
 			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
-			--m-metadata-file $metadata \
-			--m-metadata-column $gradient_column_extremes \
+			--m-metadata-file $metadata_filepath \
+			--m-metadata-column $gradient_column_categorical \
 			--p-color-map 'seismic' \
 			--o-visualization "${qzaoutput2}gneiss_outputs/heatmap_pCG.qzv"
 
@@ -1097,15 +1110,19 @@ if [ "$gneiss_gradient" = false ] && [ "$sklearn_done" = true ]; then
 			--i-taxonomy "${qzaoutput2}taxonomy.qza" \
 			--p-taxa-level $taxa_level \
 			--p-balance-name $balance_name \
-			--m-metadata-file $metadata \
-			--m-metadata-column $gradient_column_extremes \
-			--o-visualization "${qzaoutput2}gneiss_outputs/${balance_name}_taxa_summary_${gradient_column_extremes}_level_${taxa_level}.qzv"
+			--m-metadata-file $metadata_filepath \
+			--m-metadata-column $gradient_column_categorical \
+			--o-visualization "${qzaoutput2}gneiss_outputs/${balance_name}_taxa_summary_${gradient_column_categorical}_level_${taxa_level}.qzv"
 	done
+	echo "Finished Gneiss gradient-clustering analysis block"
+	echo ""
+	if [[ "$log" = true ]]; then
+		echo "Finished Gneiss gradient-clustering analysis block" >&3
+	fi
 else
 	echo "Either gneiss_gradient is set to false in optional_analyses.txt, or the taxonomic"
-	echo "labelling has not been finished for your data. Gneiss analyses cannot proceed until"
-	echo "the issue is fixed."
-	exit 13
+	echo "labelling has not been finished for your data. Gneiss analyses will not be performed."
+	echo ""
 fi
 
 
@@ -1120,9 +1137,10 @@ fi
 
 #<<<<<<<<<<<<<<<<<<<<END SORT AND OUTPUT<<<<<<<<<<<<<<<<<<<<
 
-echo "Successful execution"
+echo "The script has finished successfully"
+echo ""
 if [[ "$log" = true ]]; then
-	echo "Successful execution" >&3
+	echo "The script has finished successfully" >&3
 fi
 
 exit 0
