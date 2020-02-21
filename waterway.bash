@@ -14,12 +14,12 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.2.1"
+version="1.2.2"
 
 #Setting very basic arguments (srcpath is located here)
 scriptdir=`dirname "$0"`
 srcpath="${scriptdir}/config.txt"
-analysis_path="${scriptdir}/analysis_to_rerun.txt"
+analysis_path="${scriptdir}/optional_analyses.txt"
 
 if [ ! -f $srcpath ] ; then
 	echo ""
@@ -34,7 +34,7 @@ if [ ! -f $srcpath ] ; then
 	echo -e "qzaoutput=/home/username/folder with raw-data, metadata, and outputs folders/outputs/" >> config.txt
 	echo -e "metadata_filepath=/home/username/folder with raw-data, metadata, and outputs folders/metadata/metadata.tsv\n" >> config.txt
 	echo -e "#If using a manifest file, use the manifest filepath here" >> config.txt
-	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv" >> config.txt
+	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv\n" >> config.txt
 	echo -e "#Choose how much to trim/trunc here. All combinations of trim/trunc will be done (Dada2)" >> config.txt
 	echo -e "trimF=0" >> config.txt
 	echo -e "trimR=0" >> config.txt
@@ -63,15 +63,23 @@ if [ ! -f $srcpath ] ; then
 	echo "touch this file if this is the first time analysing your data set."
 	echo ""
 	
-	touch analysis_to_rerun.txt
+	touch optional_analyses.txt
 	
-	echo -e "#Beta analysis" >> analysis_to_rerun.txt
-	echo -e 'rerun_beta_analysis=false' >> analysis_to_rerun.txt
+	echo -e "#Phyloseq and alpha rarefaction" >> optional_analyses.txt
+	echo -e "rerun_phylo_and_alpha=false\n" >> optional_analyses.txt
+	echo -e "#Beta analysis" >> optional_analyses.txt
+	echo -e "rerun_beta_analysis=false\n" >> optional_analyses.txt
+	echo -e "#Gneiss gradient-clustering analyses" >> optional_analyses.txt
+	echo -e "gneiss_gradient=false" >> optional_analyses.txt
+	echo -e "gradient_column='column in metadata to use here'" >> optional_analyses.txt
+	echo -e "gradient_column_extremes='column in metadata that only has either 'low' or 'high''" >> optional_analyses.txt
+	echo -e "taxa_level=0" >> optional_analyses.txt
+	echo -e "balance_name=none" >> optional_analyses.txt
 	exit 11
 fi
 
-source $srcpath
-source $analysis_path
+source $srcpath 2> /dev/null
+source $analysis_path 2> /dev/null
 
 
 #---------------------------------------------------------------------------------------------------
@@ -88,7 +96,7 @@ manifest_status=false
 show_functions=false
 train_classifier=false
 single_end_reads=false
-graphs=true
+graphs=false
 
 #Let's set the option flags here
 for op
@@ -321,12 +329,14 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 	fi
 	echo "train_classifier is $train_classifier"
 	echo "download greengenes is $download_greengenes_files_for_me"
+	echo ""
 	echo "import_done is $import_done"
 	echo "importvis_done is $importvis_done"
 	echo "dada2_done is $dada2_done"
 	echo "tree_done is $tree_done"
 	echo "divanalysis_done is $divanalysis_done"
 	echo "sklearn_done is $sklearn_done"
+	echo ""
 	
 	if [[ "$log" = true ]]; then
 		echo "manifest_status is $manifest_status" >&3
@@ -335,12 +345,14 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 		fi
 		echo "train_classifier is $train_classifier" >&3
 		echo "download greengenes is $download_greengenes_files_for_me" >&3
+		echo "" >&3
 		echo "import_done is $import_done" >&3
 		echo "importvis_done is $importvis_done" >&3
 		echo "dada2_done is $dada2_done" >&3
 		echo "tree_done is $tree_done" >&3
 		echo "divanalysis_done is $divanalysis_done" >&3
 		echo "sklearn_done is $sklearn_done" >&3
+		echo "" >&3
 	fi
 	
 	#If -t was set, exit here
@@ -354,7 +366,49 @@ fi
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>RERUN BLOCK>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+#TODO: Make so that more than one analyses can be rerun at a time.
+#Maybe nest the "exit 0" into an if block (if number of reruns run == number of true vars in analyses_to_rerun.txt, then exit).
+
+if [ "$rerun_phylo_and_alpha" = true ]; then
+	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
+	do
+		qiime diversity core-metrics-phylogenetic \
+			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
+			--i-table "${qzaoutput2}table.qza" \
+			--p-sampling-depth $sampling_depth \
+			--m-metadata-file $metadata_filepath \
+			--output-dir "${qzaoutput2}core-metrics-results"
+			
+		echo "Finished core-metrics-phylogenetic for ${qzaoutput2}"
+		if [[ "$log" = true ]]; then
+			echo "Finished core-metrics-phylogenetic for ${qzaoutput2}" >&3
+		fi
+
+		if [[ "$verbose" = true ]]; then
+			echo "Starting alpha-group-significance and alpha-rarefaction"
+		fi
+
+		qiime diversity alpha-group-significance \
+			--i-alpha-diversity "${qzaoutput2}core-metrics-results/faith_pd_vector.qza" \
+			--m-metadata-file $metadata_filepath \
+			--o-visualization "${qzaoutput2}core-metrics-results/faith-pd-group-significance.qzv"
+
+		qiime diversity alpha-rarefaction \
+			--i-table "${qzaoutput2}table.qza" \
+			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
+			--p-max-depth $alpha_depth \
+			--m-metadata-file $metadata_filepath \
+			--o-visualization "${qzaoutput2}alpha-rarefaction.qzv"
+		
+		if [[ "$verbose" = true ]]; then
+			echo "Finished alpha rarefaction and group significance"
+		fi
+	done
+	exit 0
+fi
+
 if [ "$rerun_beta_analysis" = true ]; then
+
 	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
 	do
 	
@@ -364,25 +418,23 @@ if [ "$rerun_beta_analysis" = true ]; then
 		echo "Starting beta diversity analysis"
 		
 		qiime diversity beta-group-significance \
-			--i-distance-matrix "${qzaoutput2}core_metrics_results/unweighted_unifrac_distance_matrix.qza" \
+			--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
 			--m-metadata-file $metadata_filepath \
 			--m-metadata-column $beta_diversity_group \
-			--o-visualization "${qzaoutput2}core_metrics_results/unweighted-unifrac-beta-significance.qzv" \
+			--o-visualization "${qzaoutput2}core-metrics-results/unweighted-unifrac-beta-significance.qzv" \
 			--p-pairwise
 			
 		qiime diversity beta-group-significance \
-			--i-distance-matrix "${qzaoutput2}core_metrics_results/weighted_unifrac_distance_matrix.qza" \
+			--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
 			--m-metadata-file $metadata_filepath \
 			--m-metadata-column $beta_diversity_group \
-			--o-visualization "${qzaoutput2}core_metrics_results/weighted-unifrac-beta-significance.qzv" \
+			--o-visualization "${qzaoutput2}core-metrics-results/weighted-unifrac-beta-significance.qzv" \
 			--p-pairwise
 			
 		echo "Finished beta diversity analysis"
-		
 	done
 	exit 0
 fi
-	
 
 #<<<<<<<<<<<<<<<<<<<<END VERBOSE BLOCK<<<<<<<<<<<<<<<<<<<<
 
@@ -553,51 +605,61 @@ if [ "$train_classifier" = true ]; then
 		exit 199
 	fi
 	
-	#Run the import commands
-	echo "Running initial file imports..."
-	if [[ "$log" = true ]]; then
-		echo "Running initial file imports..." >&3
-	fi
-	
-	qiime tools import \
-		--type 'FeatureData[Sequence]' \
-		--input-path $ggfasta \
-		--output-path "99_otus.qza"
-	
-	qiime tools import \
-		--type 'FeatureData[Taxonomy]' \
-		--input-format HeaderlessTSVTaxonomyFormat \
-		--input-path $ggtaxonomy \
-		--output-path "ref-taxonomy.qza"
-	
-	#Run the extractions
-	echo "Running read extractions..."
-	if [[ "$log" = true ]]; then
-		echo "Running read extractions..." >&3
-	fi
-	
-	qiime feature-classifier extract-reads \
-		--i-sequences "99_otus.qza" \
-		--p-f-primer $forward_primer \
-		--p-r-primer $reverse_primer \
-		--p-min-length $min_read_length \
-		--p-max-length $max_read_length \
-		--o-reads "extracted-reads.qza"
+	if {[ ! -f "99_outs.qza" ] || [ ! -f "ref-taxonomy.qza" ]} && {[ ! -f "extracted-reads.qza" ] || [ ! -f "classifier.qza" ]}; then
+		#Run the import commands
+		echo "Running initial file imports..."
+		if [[ "$log" = true ]]; then
+			echo "Running initial file imports..." >&3
+		fi
 		
-	#Train the classifier
-	echo "Training the naive bayes classifier..."
-	if [[ "$log" = true ]]; then
-		echo "Training the naive bayes classifier..." >&3
+		qiime tools import \
+			--type 'FeatureData[Sequence]' \
+			--input-path $ggfasta \
+			--output-path "99_otus.qza"
+		
+		qiime tools import \
+			--type 'FeatureData[Taxonomy]' \
+			--input-format HeaderlessTSVTaxonomyFormat \
+			--input-path $ggtaxonomy \
+			--output-path "ref-taxonomy.qza"
 	fi
 	
-	qiime feature-classifier fit-classifier-naive-bayes \
-		--i-reference-reads "extracted-reads.qza" \
-		--i-reference-taxonomy "ref-taxonomy.qza" \
-		--o-classifier classifier.qza
+	if [ ! -f "extracted-reads.qza" ] && [ ! -f "classifier.qza" ]; then
+		#Run the extractions
+		echo "Running read extractions..."
+		if [[ "$log" = true ]]; then
+			echo "Running read extractions..." >&3
+		fi
+		
+		qiime feature-classifier extract-reads \
+			--i-sequences "99_otus.qza" \
+			--p-f-primer $forward_primer \
+			--p-r-primer $reverse_primer \
+			--p-min-length $min_read_length \
+			--p-max-length $max_read_length \
+			--o-reads "extracted-reads.qza"
+	fi
 	
-	echo "Finished training the classifier as classifier.qza"
-	if [[ "$log" = true ]]; then
-		echo "Finished training the classifier as classifier.qza" >&3
+	if [ ! -f "classifier.qza" ]; then
+		#Train the classifier
+		echo "Training the naive bayes classifier..."
+		if [[ "$log" = true ]]; then
+			echo "Training the naive bayes classifier..." >&3
+		fi
+		
+		qiime feature-classifier fit-classifier-naive-bayes \
+			--i-reference-reads "extracted-reads.qza" \
+			--i-reference-taxonomy "ref-taxonomy.qza" \
+			--o-classifier classifier.qza
+		
+		echo "Finished training the classifier as classifier.qza"
+		if [[ "$log" = true ]]; then
+			echo "Finished training the classifier as classifier.qza" >&3
+		fi
+	else
+		echo "The classifier already exists as classifier.qza"
+		echo "Please rename the current classifier file if you want a new"
+		echo "classifier to be made"
 	fi
 	
 	sed -i '/classifierpath=/c\classifierpath='"${scriptdir}/classifier.qza" "$srcpath"
@@ -624,6 +686,8 @@ fi
 #---------------------------------------------Main--------------------------------------------------#
 #---------------------------------------------------------------------------------------------------#
 #####################################################################################################
+
+files_created=()
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>IMPORT>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -682,6 +746,7 @@ if [ "$importvis_done" = false ]; then
 	qiime demux summarize \
 		--i-data ${qzaoutput}imported_seqs.qza \
 		--o-visualization ${qzaoutput}imported_seqs.qzv
+	
 	if [[ "$verbose" = true ]]; then
 		echo "Finished summarization of ${qzaoutput}imported_seqs.qza"
 		if [[ "$log" = true ]]; then
@@ -757,6 +822,7 @@ if [ "$dada2_done" = false ]; then
 
 			qiime feature-table summarize \
 				--i-table "${qzaoutput}${element}-${element2}/table.qza" \
+				--m-sample-metadata-file $metadata
 				--o-visualization "${qzaoutput}${element}-${element2}/table.qzv"
 
 			qiime feature-table tabulate-seqs \
@@ -847,6 +913,8 @@ if [ "$divanalysis_done" = false ]; then
 		#Defining qzaoutput2
 		qzaoutput2=${fl%"table.qza"}
 		
+		echo "Starting core-metrics output"
+		
 		#Passing the rooted-tree.qza generated through core-metrics-phylogenetic
 		qiime diversity core-metrics-phylogenetic \
 			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
@@ -865,9 +933,9 @@ if [ "$divanalysis_done" = false ]; then
 		fi
 
 		qiime diversity alpha-group-significance \
-			--i-alpha-diversity "${qzaoutput2}core_metrics_results/faith_pd_vector.qza" \
+			--i-alpha-diversity "${qzaoutput2}core-metrics-results/faith_pd_vector.qza" \
 			--m-metadata-file $metadata_filepath \
-			--o-visualization "${qzaoutput2}core_metrics_results/faith-pd-group-significance.qzv"
+			--o-visualization "${qzaoutput2}core-metrics-results/faith-pd-group-significance.qzv"
 
 		qiime diversity alpha-rarefaction \
 			--i-table "${qzaoutput2}table.qza" \
@@ -883,17 +951,17 @@ if [ "$divanalysis_done" = false ]; then
 		echo "Starting beta diversity analysis"
 		
 		qiime diversity beta-group-significance \
-			--i-distance-matrix "${qzaoutput2}core_metrics_results/unweighted_unifrac_distance_matrix.qza" \
+			--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
 			--m-metadata-file $metadata_filepath \
 			--m-metadata-column $beta_diversity_group \
-			--o-visualization "${qzaoutput2}core_metrics_results/unweighted-unifrac-beta-significance.qzv" \
+			--o-visualization "${qzaoutput2}core-metrics-results/unweighted-unifrac-beta-significance.qzv" \
 			--p-pairwise
 			
 		qiime diversity beta-group-significance \
-			--i-distance-matrix "${qzaoutput2}core_metrics_results/weighted_unifrac_distance_matrix.qza" \
+			--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
 			--m-metadata-file $metadata_filepath \
 			--m-metadata-column $beta_diversity_group \
-			--o-visualization "${qzaoutput2}core_metrics_results/weighted-unifrac-beta-significance.qzv" \
+			--o-visualization "${qzaoutput2}core-metrics-results/weighted-unifrac-beta-significance.qzv" \
 			--p-pairwise
 		
 		if [[ "$verbose" = true ]]; then
@@ -977,6 +1045,80 @@ if [ "$sklearn_done" = false ]; then
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END SK_LEARN<<<<<<<<<<<<<<<<<<<<
+
+
+#####################################################################################################
+#---------------------------------------------------------------------------------------------------#
+#------------------------------------------Optionals------------------------------------------------#
+#---------------------------------------------------------------------------------------------------#
+#####################################################################################################
+
+
+###ALL CODE AFTER THIS POINT WILL EXECUTE ONLY AFTER THE MAIN CODE BLOCK HAS BEEN RUN###
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>OPTIONAL GNEISS GRADIENT CLUSTERING>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$gneiss_gradient" = false ] && [ "$sklearn_done" = true ]; then
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+		#Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+
+		qiime gneiss gradient-clustering \
+			--i-table "${qzaoutput2}table.qza" \
+			--m-gradient-file $metadata \
+			--m-gradient-column $gradient_column \
+			--o-clustering "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza"
+  
+		qiime gneiss ilr-hierarchical \
+			--i-table "${qzaoutput2}table.qza" \
+			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
+			--o-balances "${qzaoutput2}gneiss_outputs/balances.qza"
+		
+		qiime gneiss ols-regression \
+			--p-formula $gradient_column \
+			--i-table "${qzaoutput2}gneiss_outputs/balances.qza" \
+			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
+			--m-metadata-file $metadata \
+			--o-visualization "${qzaoutput2}gneiss_outputs/regression_summary_pCG.qzv"
+
+		qiime gneiss dendrogram-heatmap \
+			--i-table "${qzaoutput2}table.qza" \
+			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
+			--m-metadata-file $metadata \
+			--m-metadata-column $gradient_column_extremes \
+			--p-color-map 'seismic' \
+			--o-visualization "${qzaoutput2}gneiss_outputs/heatmap_pCG.qzv"
+
+		qiime gneiss balance-taxonomy \
+			--i-table "${qzaoutput2}table.qza" \
+			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
+			--i-taxonomy "${qzaoutput2}taxonomy.qza" \
+			--p-taxa-level $taxa_level \
+			--p-balance-name $balance_name \
+			--m-metadata-file $metadata \
+			--m-metadata-column $gradient_column_extremes \
+			--o-visualization "${qzaoutput2}gneiss_outputs/${balance_name}_taxa_summary_${gradient_column_extremes}_level_${taxa_level}.qzv"
+	done
+else
+	echo "Either gneiss_gradient is set to false in optional_analyses.txt, or the taxonomic"
+	echo "labelling has not been finished for your data. Gneiss analyses cannot proceed until"
+	echo "the issue is fixed."
+	exit 13
+fi
+
+
+
+#<<<<<<<<<<<<<<<<<<<<END OPTIONAL GNEISS GRADIENT CLUSTERING<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>>>>>>>SORT AND OUTPUT>>>>>>>>>>>>>>>>>>>>>>>
+
+
+#Add all qza and qzv files produced to two different folders inside the truncF-truncR folders
+#TODO
+
+#<<<<<<<<<<<<<<<<<<<<END SORT AND OUTPUT<<<<<<<<<<<<<<<<<<<<
 
 echo "Successful execution"
 if [[ "$log" = true ]]; then
