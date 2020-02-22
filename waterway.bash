@@ -20,8 +20,10 @@ version="1.2.3"
 scriptdir=`dirname "$0"`
 srcpath="${scriptdir}/config.txt"
 analysis_path="${scriptdir}/optional_analyses.txt"
+exitnow=false
 
-if [ ! -f $srcpath ] ; then
+if [ ! -f $srcpath ]; then
+	exitnow=true
 	echo ""
 	echo "A config file does not exist. Instead, a template config file will"
 	echo "be created where the script is located. Take note and preserve the" 
@@ -57,9 +59,12 @@ if [ ! -f $srcpath ] ; then
 	echo -e "max_read_length=400\n\n" >> config.txt
 	echo -e "#Do not change this" >> config.txt
 	echo -e 'demuxpairedendpath=${qzaoutput}imported_seqs.qza\n' >> config.txt
+fi
 
+if [ ! -f $analysis_path ]; then
+	exitnow=true
 	echo ""
-	echo "An analysis_to_rerun file also will be created now. Please do not"
+	echo "An analysis_to_rerun file was not found, and will be created now. Please do not"
 	echo "touch this file if this is the first time analysing your data set."
 	echo ""
 	
@@ -82,6 +87,10 @@ if [ ! -f $srcpath ] ; then
 	echo -e "rerun_ancom_composition=false\n" >> optional_analyses.txt
 	echo -e "#PCoA Biplot Analysis" >> optional_analyses.txt
 	echo -e "run_biplot=false" >> optional_analyses.txt
+	echo -e "number_of_dimensions=20" >> optional_analyses.txt
+fi
+
+if [ "$exitnow" = true ]; then
 	exit 11
 fi
 
@@ -1064,7 +1073,7 @@ fi
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>ANCOM>>>>>>>>>>>>>>>>>>>>>>>
 
-if {[ "$run_ancom" = true ] && [ "$sklearn_done" = true ]} || {[ "$rerun_ancom_composition" = true ] && [ "$sklearn_done" = true ]}; then
+if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$rerun_ancom_composition" = true && "$sklearn_done" = true ) ]] ; then
 	
 	echo ""
 	echo "Starting taxa collapsing"
@@ -1146,18 +1155,36 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 		qzaoutput2=${repqza%"rep-seqs.qza"}
 			
 		mkdir "${qzaoutput2}biplot_outputs" 2> /dev/null
-	
+		
+		echo "Creating rarefied table..."
+		
+		qiime feature-table rarefy \
+			--i-table "${qzaoutput2}table.qza" \
+			--p-sampling-depth $sampling_depth \
+			--o-rarefied-table "${qzaoutput2}biplot_outputs/rarefied_table.qza"
+		
+		qiime diversity beta \
+			--i-table "${qzaoutput2}biplot_outputs/rarefied_table.qza" \
+			--p-metric braycurtis \
+			--o-distance-matrix "${qzaoutput2}biplot_outputs/braycurtis_div.qza"
+		
+		qiime diversity pcoa \
+		--i-distance-matrix "${qzaoutput2}biplot_outputs/braycurtis_div.qza" \
+		--p-number-of-dimensions $number_of_dimensions \
+		--o-pcoa "${qzaoutput2}biplot_outputs/braycurtis_pcoa.qza"
+		
+		echo "Finished rarefied table"
 		echo "Starting relative frequency table generation..."
 		
 		qiime feature-table relative-frequency \
-			--i-table "${qzaoutput2}alpha-rarefaction.qzv" \
+			--i-table "${qzaoutput2}biplot_outputs/rarefied_table.qza" \
 			--o-relative-frequency-table "${qzaoutput2}biplot_outputs/rarefied_table_relative.qza"
 			
 		echo "Finished relative frequency table generation"
 		echo "Making the biplot for unweighted UniFrac..."
 		
 		qiime diversity pcoa-biplot \
-			--i-pcoa "${qzaoutput2}core-metrics-results/unweighted_unifrac_pcoa_results.qza" \
+			--i-pcoa "${qzaoutput2}biplot_outputs/braycurtis_pcoa.qza" \
 			--i-features "${qzaoutput2}biplot_outputs/rarefied_table_relative.qza" \
 			--o-biplot "${qzaoutput2}biplot_outputs/biplot_matrix_unweighted_unifrac.qza"
 			
@@ -1171,12 +1198,14 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 			--o-visualization "${qzaoutput2}biplot_outputs/unweighted_unifrac_emperor_biplot.qzv"
 			
 		echo "Finished producing the emperor plot"
-		echo "Ancom analysis finished"
+		echo "PCoA biplot analysis finished"
+		echo ""
 	done
 else
 	echo "Either run_biplot is set to false, or taxonomic analyses"
 	echo "have not been completed on the dataset. Biplot production"
 	echo "will not proceed."
+	echo ""
 fi
 
 
