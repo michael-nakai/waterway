@@ -14,7 +14,7 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.2.2"
+version="1.2.3"
 
 #Setting very basic arguments (srcpath is located here)
 scriptdir=`dirname "$0"`
@@ -74,7 +74,14 @@ if [ ! -f $srcpath ] ; then
 	echo -e "gradient_column='column in metadata to use here'" >> optional_analyses.txt
 	echo -e "gradient_column_categorical='column in metadata that only has either 'low' or 'high''" >> optional_analyses.txt
 	echo -e "taxa_level=0" >> optional_analyses.txt
-	echo -e "balance_name=none" >> optional_analyses.txt
+	echo -e "balance_name=none\n" >> optional_analyses.txt
+	echo -e "#Ancom analysis" >> optional_analyses.txt
+	echo -e "run_ancom=false" >> optional_analyses.txt
+	echo -e "collapse_taxa_to_level=6" >> optional_analyses.txt
+	echo -e "group_to_compare=none" >> optional_analyses.txt
+	echo -e "rerun_ancom_composition=false\n" >> optional_analyses.txt
+	echo -e "#PCoA Biplot Analysis" >> optional_analyses.txt
+	echo -e "run_biplot=false" >> optional_analyses.txt
 	exit 11
 fi
 
@@ -1055,7 +1062,127 @@ fi
 ###ALL CODE AFTER THIS POINT WILL EXECUTE ONLY AFTER THE MAIN CODE BLOCK HAS BEEN RUN###
 
 
-#>>>>>>>>>>>>>>>>>>>>>>>>>>OPTIONAL GNEISS GRADIENT CLUSTERING>>>>>>>>>>>>>>>>>>>>>>>
+#>>>>>>>>>>>>>>>>>>>>>>>>>>ANCOM>>>>>>>>>>>>>>>>>>>>>>>
+
+if {[ "$run_ancom" = true ] && [ "$sklearn_done" = true ]} || {[ "$rerun_ancom_composition" = true ] && [ "$sklearn_done" = true ]}; then
+	
+	echo ""
+	echo "Starting taxa collapsing"
+	
+	
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+		
+		if [ "$rerun_ancom_composition" = false ]; then
+		
+			#Defining qzaoutput2
+			qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+			mkdir "${qzaoutput2}ancom_outputs" 2> /dev/null
+			
+			echo "Feature table filtering starting..."
+			
+			qiime feature-table filter-features \
+				--i-table "${qzaoutput2}table.qza" \
+				--p-min-samples 2 \
+				--o-filtered-table "${qzaoutput2}ancom_outputs/temp.qza"
+			
+			qiime feature-table filter-features \
+				--i-table "${qzaoutput2}ancom_outputs/temp.qza" \
+				--p-min-frequency 10 \
+				--o-filtered-table "${qzaoutput2}ancom_outputs/filtered_table.qza"
+				
+			rm "${qzaoutput2}ancom_outputs/temp.qza" 2> /dev/null
+				
+			echo "Feature table filtering finished"
+			echo "Taxa collapsing starting..."
+		
+			qiime taxa collapse \
+				--i-table "${qzaoutput2}ancom_outputs/filtered_table.qza" \
+				--i-taxonomy "${qzaoutput2}taxonomy.qza" \
+				--p-level $collapse_taxa_to_level \
+				--o-collapsed-table "${qzaoutput2}ancom_outputs/genus.qza"
+			
+			echo "Finished taxa collapsing"
+			echo "Starting pseudocount adding"
+			
+			qiime composition add-pseudocount \
+				--i-table "${qzaoutput2}ancom_outputs/genus.qza" \
+				--o-composition-table "${qzaoutput2}ancom_outputs/added_pseudo.qza"
+			
+			echo "Finished pseudocount adding"
+		fi
+		
+		echo "Starting ancom composition"
+		
+		qiime composition ancom \
+			--i-table "${qzaoutput2}ancom_outputs/added_pseudo.qza" \
+			--m-metadata-file $metadata_filepath \
+			--m-metadata-column $group_to_compare \
+			--o-visualization "${qzaoutput2}ancom_outputs/ancom_group.qzv"
+	
+		echo "Finished ancom composition and the ancom block"
+	done
+
+else
+	echo "Either run_ancom is set to false, or taxonomic analyses"
+	echo "have not been completed on the dataset. Ancom analysis"
+	echo "will not proceed."
+
+fi
+
+
+#<<<<<<<<<<<<<<<<<<<<END ANCOM<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>>>>>>>PCOA BIPLOT>>>>>>>>>>>>>>>>>>>>>>>
+
+
+if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
+
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		#Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+		mkdir "${qzaoutput2}biplot_outputs" 2> /dev/null
+	
+		echo "Starting relative frequency table generation..."
+		
+		qiime feature-table relative-frequency \
+			--i-table "${qzaoutput2}alpha-rarefaction.qzv" \
+			--o-relative-frequency-table "${qzaoutput2}biplot_outputs/rarefied_table_relative.qza"
+			
+		echo "Finished relative frequency table generation"
+		echo "Making the biplot for unweighted UniFrac..."
+		
+		qiime diversity pcoa-biplot \
+			--i-pcoa "${qzaoutput2}core-metrics-results/unweighted_unifrac_pcoa_results.qza" \
+			--i-features "${qzaoutput2}biplot_outputs/rarefied_table_relative.qza" \
+			--o-biplot "${qzaoutput2}biplot_outputs/biplot_matrix_unweighted_unifrac.qza"
+			
+		echo "Finished biplot generation"
+		echo "Producing an emperor plot..."
+		
+		qiime emperor biplot \
+			--i-biplot "${qzaoutput2}biplot_outputs/biplot_matrix_unweighted_unifrac.qza" \
+			--m-sample-metadata-file $metadata_filepath \
+			--m-feature-metadata-file "${qzaoutput2}taxonomy.qza" \
+			--o-visualization "${qzaoutput2}biplot_outputs/unweighted_unifrac_emperor_biplot.qzv"
+			
+		echo "Finished producing the emperor plot"
+		echo "Ancom analysis finished"
+	done
+else
+	echo "Either run_biplot is set to false, or taxonomic analyses"
+	echo "have not been completed on the dataset. Biplot production"
+	echo "will not proceed."
+fi
+
+
+#<<<<<<<<<<<<<<<<<<<<END PCOA BIPLOT<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>>>>>>>GNEISS GRADIENT CLUSTERING>>>>>>>>>>>>>>>>>>>>>>>
 
 if [ "$gneiss_gradient" = true ] && [ "$sklearn_done" = true ]; then
 	
@@ -1127,7 +1254,7 @@ fi
 
 
 
-#<<<<<<<<<<<<<<<<<<<<END OPTIONAL GNEISS GRADIENT CLUSTERING<<<<<<<<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END GNEISS GRADIENT CLUSTERING<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
 #>>>>>>>>>>>>>>>>>>>>>>>>>>SORT AND OUTPUT>>>>>>>>>>>>>>>>>>>>>>>
 
