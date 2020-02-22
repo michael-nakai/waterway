@@ -14,7 +14,7 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.2.3"
+version="1.2.4"
 
 #Setting very basic arguments (srcpath is located here)
 scriptdir=`dirname "$0"`
@@ -1169,9 +1169,9 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 			--o-distance-matrix "${qzaoutput2}biplot_outputs/braycurtis_div.qza"
 		
 		qiime diversity pcoa \
-		--i-distance-matrix "${qzaoutput2}biplot_outputs/braycurtis_div.qza" \
-		--p-number-of-dimensions $number_of_dimensions \
-		--o-pcoa "${qzaoutput2}biplot_outputs/braycurtis_pcoa.qza"
+			--i-distance-matrix "${qzaoutput2}biplot_outputs/braycurtis_div.qza" \
+			--p-number-of-dimensions $number_of_dimensions \
+			--o-pcoa "${qzaoutput2}biplot_outputs/braycurtis_pcoa.qza"
 		
 		echo "Finished rarefied table"
 		echo "Starting relative frequency table generation..."
@@ -1280,7 +1280,6 @@ else
 	echo "labelling has not been finished for your data. Gneiss analyses will not be performed."
 	echo ""
 fi
-
 
 
 #<<<<<<<<<<<<<<<<<<<<END GNEISS GRADIENT CLUSTERING<<<<<<<<<<<<<<<<<<<<
