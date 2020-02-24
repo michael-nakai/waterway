@@ -74,12 +74,6 @@ if [ ! -f $analysis_path ]; then
 	echo -e "rerun_phylo_and_alpha=false\n" >> optional_analyses.txt
 	echo -e "#Beta analysis" >> optional_analyses.txt
 	echo -e "rerun_beta_analysis=false\n" >> optional_analyses.txt
-	echo -e "#Gneiss gradient-clustering analyses" >> optional_analyses.txt
-	echo -e "gneiss_gradient=false" >> optional_analyses.txt
-	echo -e "gradient_column='column in metadata to use here'" >> optional_analyses.txt
-	echo -e "gradient_column_categorical='column in metadata that only has either 'low' or 'high''" >> optional_analyses.txt
-	echo -e "taxa_level=0" >> optional_analyses.txt
-	echo -e "balance_name=none\n" >> optional_analyses.txt
 	echo -e "#Ancom analysis" >> optional_analyses.txt
 	echo -e "run_ancom=false" >> optional_analyses.txt
 	echo -e "collapse_taxa_to_level=6" >> optional_analyses.txt
@@ -87,7 +81,17 @@ if [ ! -f $analysis_path ]; then
 	echo -e "rerun_ancom_composition=false\n" >> optional_analyses.txt
 	echo -e "#PCoA Biplot Analysis" >> optional_analyses.txt
 	echo -e "run_biplot=false" >> optional_analyses.txt
-	echo -e "number_of_dimensions=20" >> optional_analyses.txt
+	echo -e "number_of_dimensions=20\n" >> optional_analyses.txt
+	echo -e "#Gneiss gradient-clustering analyses" >> optional_analyses.txt
+	echo -e "run_gneiss=false" >> optional_analyses.txt
+	echo -e "use_correlation_clustering=true" >> optional_analyses.txt
+	echo -e "use_gradient_clustering=false" >> optional_analyses.txt
+	echo -e "gradient_column='column in metadata to use here'" >> optional_analyses.txt
+	echo -e "gradient_column_categorical='column in metadata that only has either 'low' or 'high''" >> optional_analyses.txt
+	echo -e "heatmap_type=seismic" >> optional_analyses.txt
+	echo -e "taxa_level=0" >> optional_analyses.txt
+	echo -e "balance_name=none\n" >> optional_analyses.txt
+
 fi
 
 if [ "$exitnow" = true ]; then
@@ -1076,8 +1080,7 @@ fi
 if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$rerun_ancom_composition" = true && "$sklearn_done" = true ) ]] ; then
 	
 	echo ""
-	echo "Starting taxa collapsing"
-	
+	echo "Starting ANCOM analysis..."
 	
 	for repqza in ${qzaoutput}*/rep-seqs.qza
 	do
@@ -1213,7 +1216,7 @@ fi
 #---------------------------------------------------------------------------------------------------
 #>>>>>>>>>>>>>>>>>>>>>>>>>>GNEISS GRADIENT CLUSTERING>>>>>>>>>>>>>>>>>>>>>>>
 
-if [ "$gneiss_gradient" = true ] && [ "$sklearn_done" = true ]; then
+if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 	
 	echo "Starting Gneiss gradient-clustering analysis block..."
 	if [[ "$log" = true ]]; then
@@ -1233,17 +1236,37 @@ if [ "$gneiss_gradient" = true ] && [ "$sklearn_done" = true ]; then
 		qzaoutput2=${repqza%"rep-seqs.qza"}
 		
 		mkdir "${qzaoutput2}gneiss_outputs" 2> /dev/null
+		
+		if [ "$use_correlation_clustering" = true ]; then
+			
+			echo "Using correlation-clustering for gneiss analysis"
 
-		qiime gneiss gradient-clustering \
-			--i-table "${qzaoutput2}table.qza" \
-			--m-gradient-file $metadata_filepath \
-			--m-gradient-column $gradient_column \
-			--o-clustering "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza"
-  
+			qiime gneiss correlation-clustering \
+				--i-table "${qzaoutput2}table.qza" \
+				--o-clustering "${qzaoutput2}gneiss_outputs/hierarchy.qza"
+		
+		fi
+		
+		if [ "$use_gradient_clustering" = true ]; then
+			
+			echo "Using gradient-clustering for gneiss analysis"
+
+			qiime gneiss gradient-clustering \
+				--i-table "${qzaoutput2}table.qza" \
+				--m-gradient-file $metadata_filepath \
+				--m-gradient-column $gradient_column \
+				--o-clustering "${qzaoutput2}gneiss_outputs/hierarchy.qza"
+		
+		fi
+		
+		echo "Producing balances..."
+		
 		qiime gneiss ilr-hierarchical \
 			--i-table "${qzaoutput2}table.qza" \
-			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
+			--i-tree "${qzaoutput2}gneiss_outputs/hierarchy.qza" \
 			--o-balances "${qzaoutput2}gneiss_outputs/balances.qza"
+			
+		echo "Producing regression..."
 		
 		qiime gneiss ols-regression \
 			--p-formula $gradient_column \
@@ -1251,14 +1274,18 @@ if [ "$gneiss_gradient" = true ] && [ "$sklearn_done" = true ]; then
 			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
 			--m-metadata-file $metadata_filepath \
 			--o-visualization "${qzaoutput2}gneiss_outputs/regression_summary_pCG.qzv"
+			
+		echo "Producing heatmap..."
 
 		qiime gneiss dendrogram-heatmap \
 			--i-table "${qzaoutput2}table.qza" \
 			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
 			--m-metadata-file $metadata_filepath \
 			--m-metadata-column $gradient_column_categorical \
-			--p-color-map 'seismic' \
+			--p-color-map $heatmap_type \
 			--o-visualization "${qzaoutput2}gneiss_outputs/heatmap_pCG.qzv"
+			
+		echo "Creating gneiss output..."
 
 		qiime gneiss balance-taxonomy \
 			--i-table "${qzaoutput2}table.qza" \
@@ -1276,7 +1303,7 @@ if [ "$gneiss_gradient" = true ] && [ "$sklearn_done" = true ]; then
 		echo "Finished Gneiss gradient-clustering analysis block" >&3
 	fi
 else
-	echo "Either gneiss_gradient is set to false in optional_analyses.txt, or the taxonomic"
+	echo "Either run_gneiss is set to false in optional_analyses.txt, or the taxonomic"
 	echo "labelling has not been finished for your data. Gneiss analyses will not be performed."
 	echo ""
 fi
