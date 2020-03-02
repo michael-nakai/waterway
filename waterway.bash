@@ -115,8 +115,8 @@ hlp=false
 manifest_status=false
 show_functions=false
 train_classifier=false
-single_end_reads=false
-graphs=false
+single_end_reads=false #Currently does nothing
+graphs=false #Currently does nothing
 
 #Let's set the option flags here
 for op
@@ -148,6 +148,9 @@ do
 	if [ "$op" == "-g" ] || [ "$op" == "--graphs" ] ; then
 		graphs=true
 	fi
+	if [ "$op" == "-M" ] || [ "$op" == "--make-manifest" ] ; then
+		make_manifest=true
+	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
 		echo "Currently running waterway $version"
 		exit 0
@@ -160,11 +163,12 @@ if [[ "$hlp" = true ]] ; then
 	echo "DESCRIPTION"
 	echo "-------------------"
 	echo "This script runs the Qiime2 pipeline (without extensive analysis)"
-	echo "and outputs core-metrics-phylogenetic and taxa-bar-plots. It "
+	echo "and outputs core-metrics-phylogenetic and taxa-bar-plots. It"
 	echo "pulls variables from a config file specified in Master.txt."
 	echo ""
 	echo "OPTIONS"
 	echo "-------------------"
+	echo -e "-M\tGenerate and use manifest file"
 	echo -e "-m\tUse manifest file to import sequences, as specified in the config file"
 	echo -e "-v\tVerbose script output"
 	echo -e "-t\tTest the progress flags and exit before executing any qiime commands"
@@ -225,6 +229,30 @@ if [[ "$log" = true ]]; then
 	trap 'exec 2>&4 1>&3' 0 1 2 3
 	exec 1>>"${name}.out" 2>&1
 fi
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>MAKE MANIFEST BLOCK>>>>>>>>>>>>>>>>>>>>>>>
+if [ "$make_manifest" = true ]; then
+
+	pathtofastq="${filepath}/*.fastq.gz"
+	pathtopython="${scriptdir}/make_manifest.py"
+	echo $pathtofastq | python $pathtopython
+	
+	if [ "$?" -eq "0" ]; then
+		echo "A manifest.tsv file has been made in the"
+		echo "folder containing waterway.bash"
+		exit 0
+	else
+		echo ""
+		echo "manifest.py was not happy. Check to make sure"
+		echo "your filepath in config.txt is correct, and"
+		echo "that it does not end with a /"
+		echo ""
+		exit 1
+	fi
+fi
+
+#<<<<<<<<<<<<<<<<<<<<END MAKE MANIFEST BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>TESTING BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 #Figuring out where in the process we got to
@@ -625,7 +653,7 @@ if [ "$train_classifier" = true ]; then
 		exit 199
 	fi
 	
-	if {[ ! -f "99_outs.qza" ] || [ ! -f "ref-taxonomy.qza" ]} && {[ ! -f "extracted-reads.qza" ] || [ ! -f "classifier.qza" ]}; then
+	if [[ ( ! -f "99_outs.qza" || ! -f "ref-taxonomy.qza" ) && ( ! -f "extracted-reads.qza" || ! -f "classifier.qza" ) ]] ; then
 		#Run the import commands
 		echo "Running initial file imports..."
 		if [[ "$log" = true ]]; then
