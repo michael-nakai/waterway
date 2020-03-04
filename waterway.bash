@@ -14,13 +14,26 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.2.4"
+version="1.3"
 
 #Setting very basic arguments (srcpath is located here)
-scriptdir=`dirname "$0"`
-srcpath="${scriptdir}/config.txt"
-analysis_path="${scriptdir}/optional_analyses.txt"
 exitnow=false
+if [ -z "$1" ]; then
+	#see if argument exists to waterway, then use that dir and find configs
+	#if argument doesnt exist, use current working dir
+	srcpath="./config.txt"
+	analysis_path="./optional_analyses.txt"
+else
+	#see if last char in $1 is '/', and if it is, trim it
+	str=$1
+	i=$((${#str}-1)) 2> /dev/null
+	j=${str:$i:1} 2> /dev/null
+	if [ $j == '/' ]; then
+		str=${str%?}
+	fi
+	srcpath="${str}/config.txt"
+	analysis_path="${str}/optional_analyses.txt"
+fi
 
 if [ ! -f $srcpath ]; then
 	exitnow=true
@@ -74,11 +87,12 @@ if [ ! -f $analysis_path ]; then
 	echo -e "rerun_phylo_and_alpha=false\n" >> optional_analyses.txt
 	echo -e "#Beta analysis" >> optional_analyses.txt
 	echo -e "rerun_beta_analysis=false\n" >> optional_analyses.txt
+	echo -e "rerun_group=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
 	echo -e "#Ancom analysis" >> optional_analyses.txt
 	echo -e "run_ancom=false" >> optional_analyses.txt
 	echo -e "collapse_taxa_to_level=6" >> optional_analyses.txt
-	echo -e "group_to_compare=none" >> optional_analyses.txt
-	echo -e "rerun_ancom_composition=false\n" >> optional_analyses.txt
+	echo -e "group_to_compare=('Group1' 'Group2' 'etc...')" >> optional_analyses.txt
+	echo -e "run_ancom_composition=false\n" >> optional_analyses.txt
 	echo -e "#PCoA Biplot Analysis" >> optional_analyses.txt
 	echo -e "run_biplot=false" >> optional_analyses.txt
 	echo -e "number_of_dimensions=20\n" >> optional_analyses.txt
@@ -91,7 +105,6 @@ if [ ! -f $analysis_path ]; then
 	echo -e "heatmap_type=seismic" >> optional_analyses.txt
 	echo -e "taxa_level=0" >> optional_analyses.txt
 	echo -e "balance_name=none\n" >> optional_analyses.txt
-
 fi
 
 if [ "$exitnow" = true ]; then
@@ -420,6 +433,9 @@ fi
 if [ "$rerun_phylo_and_alpha" = true ]; then
 	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
 	do
+		#Defining qzaoutput2
+		qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
+		
 		qiime diversity core-metrics-phylogenetic \
 			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
 			--i-table "${qzaoutput2}table.qza" \
@@ -456,35 +472,39 @@ if [ "$rerun_phylo_and_alpha" = true ]; then
 fi
 
 if [ "$rerun_beta_analysis" = true ]; then
-
-	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
+	for group in "${rerun_group[@]}"
 	do
-	
-		#Defining qzaoutput2
-		qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
+		for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
+		do
 		
-		echo "Starting beta diversity analysis"
-		
-		qiime diversity beta-group-significance \
-			--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
-			--m-metadata-file $metadata_filepath \
-			--m-metadata-column $beta_diversity_group \
-			--o-visualization "${qzaoutput2}core-metrics-results/unweighted-unifrac-beta-significance.qzv" \
-			--p-pairwise
+			#Defining qzaoutput2
+			qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
 			
-		qiime diversity beta-group-significance \
-			--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
-			--m-metadata-file $metadata_filepath \
-			--m-metadata-column $beta_diversity_group \
-			--o-visualization "${qzaoutput2}core-metrics-results/weighted-unifrac-beta-significance.qzv" \
-			--p-pairwise
+			echo "Starting beta diversity analysis"
 			
-		echo "Finished beta diversity analysis"
+			#For unweighted
+			qiime diversity beta-group-significance \
+				--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $rerun_group \
+				--o-visualization "${qzaoutput2}core-metrics-results/${group}_unweighted-unifrac-beta-significance.qzv" \
+				--p-pairwise
+			
+			#For weighted
+			qiime diversity beta-group-significance \
+				--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $rerun_group \
+				--o-visualization "${qzaoutput2}core-metrics-results/${group}_weighted-unifrac-beta-significance.qzv" \
+				--p-pairwise
+			
+			echo "Finished beta diversity analysis for $group"
+		done
 	done
 	exit 0
 fi
 
-#<<<<<<<<<<<<<<<<<<<<END VERBOSE BLOCK<<<<<<<<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END RERUN BLOCK<<<<<<<<<<<<<<<<<<<<
 
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>TRAINING CLASSIFIER BLOCK>>>>>>>>>>>>>>>>>>>>>>>
@@ -1105,63 +1125,70 @@ fi
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>ANCOM>>>>>>>>>>>>>>>>>>>>>>>
 
-if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$rerun_ancom_composition" = true && "$sklearn_done" = true ) ]] ; then
+if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composition" = true && "$sklearn_done" = true ) ]] ; then
 	
 	echo ""
 	echo "Starting ANCOM analysis..."
 	
-	for repqza in ${qzaoutput}*/rep-seqs.qza
+	for group in "${group_to_compare[@]}"
 	do
 		
-		if [ "$rerun_ancom_composition" = false ]; then
-		
-			#Defining qzaoutput2
-			qzaoutput2=${repqza%"rep-seqs.qza"}
+		for repqza in ${qzaoutput}*/rep-seqs.qza
+		do
 			
-			mkdir "${qzaoutput2}ancom_outputs" 2> /dev/null
+			if [ "$run_ancom_composition" = true ]; then
 			
-			echo "Feature table filtering starting..."
+				echo "Starting composition rerun for $group"
 			
-			qiime feature-table filter-features \
-				--i-table "${qzaoutput2}table.qza" \
-				--p-min-samples 2 \
-				--o-filtered-table "${qzaoutput2}ancom_outputs/temp.qza"
-			
-			qiime feature-table filter-features \
-				--i-table "${qzaoutput2}ancom_outputs/temp.qza" \
-				--p-min-frequency 10 \
-				--o-filtered-table "${qzaoutput2}ancom_outputs/filtered_table.qza"
+				#Defining qzaoutput2
+				qzaoutput2=${repqza%"rep-seqs.qza"}
 				
-			rm "${qzaoutput2}ancom_outputs/temp.qza" 2> /dev/null
+				mkdir "${qzaoutput2}ancom_outputs" 2> /dev/null
+				mkdir "${qzaoutput2}ancom_outputs/${group}" 2> /dev/null
 				
-			echo "Feature table filtering finished"
-			echo "Taxa collapsing starting..."
-		
-			qiime taxa collapse \
-				--i-table "${qzaoutput2}ancom_outputs/filtered_table.qza" \
-				--i-taxonomy "${qzaoutput2}taxonomy.qza" \
-				--p-level $collapse_taxa_to_level \
-				--o-collapsed-table "${qzaoutput2}ancom_outputs/genus.qza"
+				echo "Feature table filtering starting for $group"
+				
+				qiime feature-table filter-features \
+					--i-table "${qzaoutput2}table.qza" \
+					--p-min-samples 2 \
+					--o-filtered-table "${qzaoutput2}ancom_outputs/${group}/temp.qza"
+				
+				qiime feature-table filter-features \
+					--i-table "${qzaoutput2}ancom_outputs/${group}/temp.qza" \
+					--p-min-frequency 10 \
+					--o-filtered-table "${qzaoutput2}ancom_outputs/${group}/filtered_table.qza"
+					
+				rm "${qzaoutput2}ancom_outputs/${group}/temp.qza" 2> /dev/null
+					
+				echo "Feature table filtering finished"
+				echo "Taxa collapsing starting..."
 			
-			echo "Finished taxa collapsing"
-			echo "Starting pseudocount adding"
+				qiime taxa collapse \
+					--i-table "${qzaoutput2}ancom_outputs/${group}/filtered_table.qza" \
+					--i-taxonomy "${qzaoutput2}taxonomy.qza" \
+					--p-level $collapse_taxa_to_level \
+					--o-collapsed-table "${qzaoutput2}ancom_outputs/${group}/genus.qza"
+				
+				echo "Finished taxa collapsing"
+				echo "Starting pseudocount adding"
+				
+				qiime composition add-pseudocount \
+					--i-table "${qzaoutput2}ancom_outputs/${group}/genus.qza" \
+					--o-composition-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo.qza"
+				
+				echo "Finished pseudocount adding"
+			fi
 			
-			qiime composition add-pseudocount \
-				--i-table "${qzaoutput2}ancom_outputs/genus.qza" \
-				--o-composition-table "${qzaoutput2}ancom_outputs/added_pseudo.qza"
+			echo "Starting ancom composition"
 			
-			echo "Finished pseudocount adding"
-		fi
+			qiime composition ancom \
+				--i-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $group_to_compare \
+				--o-visualization "${qzaoutput2}ancom_outputs/${group}/ancom_group.qzv"
 		
-		echo "Starting ancom composition"
-		
-		qiime composition ancom \
-			--i-table "${qzaoutput2}ancom_outputs/added_pseudo.qza" \
-			--m-metadata-file $metadata_filepath \
-			--m-metadata-column $group_to_compare \
-			--o-visualization "${qzaoutput2}ancom_outputs/ancom_group.qzv"
-	
-		echo "Finished ancom composition and the ancom block"
+			echo "Finished ancom composition and the ancom block for $group"
+		done
 	done
 
 else
