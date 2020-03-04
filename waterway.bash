@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=d2_pipe
+#SBATCH --job-name=waterway
 #SBATCH --account=dw30
 #SBATCH --time=168:00:00
 #SBATCH --partition=m3a
@@ -14,7 +14,10 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.3"
+version="1.3.1"
+
+#TODO: add script path to .bashrc under alias='scriptPathHere'
+scriptdir=`dirname "$0"`
 
 #Setting very basic arguments (srcpath is located here)
 exitnow=false
@@ -35,6 +38,119 @@ else
 	analysis_path="${str}/optional_analyses.txt"
 fi
 
+
+#---------------------------------------------------------------------------------------------------
+#------------------------------------------Function Start-------------------------------------------
+#---------------------------------------------------------------------------------------------------
+
+
+#>>>>>>>>>>>>>>>>>>>>>>>>>>OPTIONS BLOCK>>>>>>>>>>>>>>>>>>>>>>>
+verbose=false
+log=false
+tst=false
+hlp=false
+manifest_status=false
+show_functions=false
+train_classifier=false
+single_end_reads=false #Currently does nothing
+graphs=false #Currently does nothing
+
+#Let's set the option flags here
+for op
+do
+	if [ "$op" == "-v" ] || [ "$op" == "--verbose" ] ; then
+		verbose=true
+	fi
+	if [ "$op" == "-l" ] || [ "$op" == "--log" ] ; then
+		log=true
+	fi
+	if [ "$op" == "-m" ] || [ "$op" == "--manifest" ] ; then
+		manifest_status=true
+	fi
+	if [ "$op" == "-t" ] || [ "$op" == "--test" ] ; then
+		tst=true
+	fi
+	if [ "$op" == "-h" ] || [ "$op" == "--help" ] ; then
+		hlp=true
+	fi
+	if [ "$op" == "-f" ] || [ "$op" == "--show_functions" ] ; then
+		show_functions=true
+	fi
+	if [ "$op" == "-c" ] || [ "$op" == "--train_classifier" ] ; then
+		train_classifier=true
+	fi
+	if [ "$op" == "-s" ] || [ "$op" == "--single_end" ] ; then
+		single_end_reads=true
+	fi
+	if [ "$op" == "-g" ] || [ "$op" == "--graphs" ] ; then
+		graphs=true
+	fi
+	if [ "$op" == "-M" ] || [ "$op" == "--make-manifest" ] ; then
+		make_manifest=true
+	fi
+	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
+		echo "Currently running waterway $version"
+		exit 0
+	fi
+done
+
+#If help was set, show help and exit
+if [[ "$hlp" = true ]] ; then
+	echo ""
+	echo "DESCRIPTION"
+	echo "-------------------"
+	echo "This script runs the Qiime2 pipeline (without extensive analysis)"
+	echo "and outputs core-metrics-phylogenetic and taxa-bar-plots. It"
+	echo "pulls variables from a config file specified in Master.txt."
+	echo ""
+	echo "OPTIONS"
+	echo "-------------------"
+	echo -e "-M\tGenerate manifest file from files in filepath (in config.txt)"
+	echo -e "-m\tUse manifest file to import sequences, as specified in the config file"
+	echo -e "-v\tVerbose script output"
+	echo -e "-t\tTest the progress flags and exit before executing any qiime commands"
+	echo -e "-l\tEnable logging to a log file that is made where this script is"
+	echo -e "-f\tShow the exact list of functions used in this script and their output files"
+	echo -e "-c\tTrain a greengenes 13_5 99% coverage otu classifier."
+	echo -e "-h\tShow this help dialogue"
+	echo ""
+	exit 0
+fi
+
+#If show_functions was set, show the sequence of functions as below:
+if [[ "$show_functions" = true ]] ; then
+	echo ""
+	echo "Functions used in this script:"
+	echo ""
+	echo "---Import Block---"
+	echo "1a. qiime tools import (Paired end, Cassava 1.8)"
+	echo "1b. qiime tools import (Paired end, from manifest with Phred33V2, only if -m is used)"
+	echo ""
+	echo "---Import Visualization Block---"
+	echo "2. qiime demux summarize (outputs imported_seqs.qzv)"
+	echo ""
+	echo "---Dada2 Block---"
+	echo "3. qiime dada2 denoise-paired (outputs table.qza, rep-seqs.qza, denoising-stats.qza)"
+	echo "4. qiime feature-table summarize (outputs table.qzv)"
+	echo "5. qiime feature-table tabulate-seqs (outputs rep-seqs.qzv)"
+	echo "6. qiime metadata tabulate (outputs denoising-stats.qzv)"
+	echo ""
+	echo "---Tree Generation Block---"
+	echo "7. qiime phylogeny align-to-tree-mafft-fasttree (outputs a masked rep-seqs and 2 tree qza files)"
+	echo ""
+	echo "---Phylogeny Generation Block---"
+	echo "8. qiime diversity core-metrics-phylogenetic (outputs core-metrics-results folder)"
+	echo "9. qiime diversity alpha-rarefaction (outputs alpha-rarefaction.qzv)"
+	echo ""
+	echo "---Taxonomic Assignment Block---"
+	echo "10. qiime feature-classifier classify-sklearn (outputs taxonomy.qza)"
+	echo "11. qiime metadata tabulate (outputs taxonomy.qzv)"
+	echo "12. qiime taxa barplot (outputs taxa-bar-plots.qzv)"
+	echo ""
+	exit 0
+fi
+
+#See if configs exist
 if [ ! -f $srcpath ]; then
 	exitnow=true
 	echo ""
@@ -108,124 +224,61 @@ if [ ! -f $analysis_path ]; then
 fi
 
 if [ "$exitnow" = true ]; then
-	exit 11
+	exit 0
 fi
 
 source $srcpath 2> /dev/null
 source $analysis_path 2> /dev/null
 
+#if -M was set, source config.txt and make a manifest file
+if [[ "$make_manifest" = true ]] ; then
+	python << END > "${str}/pyscript.py"
+import sys, os
+data = sys.stdin.readlines()
+print(data)
+data = data[0]
+data = data.rstrip()
+data = data.split(" ")
 
-#---------------------------------------------------------------------------------------------------
-#------------------------------------------Function Start-------------------------------------------
-#---------------------------------------------------------------------------------------------------
+newdata = []
+IDlist = []
 
+#Create a list of the full filenames
+for element in data:
+	a = element.rfind("/")
+	newdata.append(element[a+1:])
 
-#>>>>>>>>>>>>>>>>>>>>>>>>>>OPTIONS BLOCK>>>>>>>>>>>>>>>>>>>>>>>
-verbose=false
-log=false
-tst=false
-hlp=false
-manifest_status=false
-show_functions=false
-train_classifier=false
-single_end_reads=false #Currently does nothing
-graphs=false #Currently does nothing
+#Create a list of only IDs (only take the string until the first "_")
+for element in newdata:
+	a = element.find("_")
+	IDlist.append(element[0:a])
 
-#Let's set the option flags here
-for op
-do
-	if [ "$op" == "-v" ] || [ "$op" == "--verbose" ] ; then
-		verbose=true
-	fi
-	if [ "$op" == "-l" ] || [ "$op" == "--log" ] ; then
-		log=true
-	fi
-	if [ "$op" == "-m" ] || [ "$op" == "--manifest" ] ; then
-		manifest_status=true
-	fi
-	if [ "$op" == "-t" ] || [ "$op" == "--test" ] ; then
-		tst=true
-	fi
-	if [ "$op" == "-h" ] || [ "$op" == "--help" ] ; then
-		hlp=true
-	fi
-	if [ "$op" == "-f" ] || [ "$op" == "--show_functions" ] ; then
-		show_functions=true
-	fi
-	if [ "$op" == "-c" ] || [ "$op" == "--train_classifier" ] ; then
-		train_classifier=true
-	fi
-	if [ "$op" == "-s" ] || [ "$op" == "--single_end" ] ; then
-		single_end_reads=true
-	fi
-	if [ "$op" == "-g" ] || [ "$op" == "--graphs" ] ; then
-		graphs=true
-	fi
-	if [ "$op" == "-M" ] || [ "$op" == "--make-manifest" ] ; then
-		make_manifest=true
-	fi
-	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
-		echo "Currently running waterway $version"
-		exit 0
-	fi
-done
+#Remove duplicate IDs from IDlist
+IDlist = list(dict.fromkeys(IDlist))
 
-#If help was set, show help and exit
-if [[ "$hlp" = true ]] ; then
-	echo ""
-	echo "DESCRIPTION"
-	echo "-------------------"
-	echo "This script runs the Qiime2 pipeline (without extensive analysis)"
-	echo "and outputs core-metrics-phylogenetic and taxa-bar-plots. It"
-	echo "pulls variables from a config file specified in Master.txt."
-	echo ""
-	echo "OPTIONS"
-	echo "-------------------"
-	echo -e "-M\tGenerate and use manifest file"
-	echo -e "-m\tUse manifest file to import sequences, as specified in the config file"
-	echo -e "-v\tVerbose script output"
-	echo -e "-t\tTest the progress flags and exit before executing any qiime commands"
-	echo -e "-l\tEnable logging to a log file that is made where this script is"
-	echo -e "-f\tShow the exact list of functions used in this script and their output files"
-	echo -e "-c\tTrain a greengenes 13_5 99% coverage otu classifier."
-	echo -e "-h\tShow this help dialogue"
-	echo ""
-	exit 101
+#Set pth to the path to the script directory
+pth = os.getcwd()
+
+#Make the tsv. The for loop makes the individual rows for each ID
+with open("{0}/manifest.tsv".format(pth), "w") as file:
+	file.write("#SampleID\tforward-absolute-filepath\treverse-absolute-filepath")
+	i = 0
+	for element in IDlist:
+		a = element
+		b = "{0}/{1}".format(pth, newdata[i])
+		i += 1
+		c = "{0}/{1}".format(pth, newdata[i])
+		i += 1
+		file.write("\n{0}\t{1}\t{2}".format(a, b, c))
+		
+print("Ran without errors")
+END
+	chmod 755 "${str}pyscript.py"
+	echo "$filepath" | python "${str}pyscript.py"
+	rm -f "${str}pyscript.py"
+	exit 0
 fi
 
-#If show_functions was set, show the sequence of functions as below:
-if [[ "$show_functions" = true ]] ; then
-	echo ""
-	echo "Functions used in this script:"
-	echo ""
-	echo "---Import Block---"
-	echo "1a. qiime tools import (Paired end, Cassava 1.8)"
-	echo "1b. qiime tools import (Paired end, from manifest with Phred33V2, only if -m is used)"
-	echo ""
-	echo "---Import Visualization Block---"
-	echo "2. qiime demux summarize (outputs imported_seqs.qzv)"
-	echo ""
-	echo "---Dada2 Block---"
-	echo "3. qiime dada2 denoise-paired (outputs table.qza, rep-seqs.qza, denoising-stats.qza)"
-	echo "4. qiime feature-table summarize (outputs table.qzv)"
-	echo "5. qiime feature-table tabulate-seqs (outputs rep-seqs.qzv)"
-	echo "6. qiime metadata tabulate (outputs denoising-stats.qzv)"
-	echo ""
-	echo "---Tree Generation Block---"
-	echo "7. qiime phylogeny align-to-tree-mafft-fasttree (outputs a masked rep-seqs and 2 tree qza files)"
-	echo ""
-	echo "---Phylogeny Generation Block---"
-	echo "8. qiime diversity core-metrics-phylogenetic (outputs core-metrics-results folder)"
-	echo "9. qiime diversity alpha-rarefaction (outputs alpha-rarefaction.qzv)"
-	echo ""
-	echo "---Taxonomic Assignment Block---"
-	echo "10. qiime feature-classifier classify-sklearn (outputs taxonomy.qza)"
-	echo "11. qiime metadata tabulate (outputs taxonomy.qzv)"
-	echo "12. qiime taxa barplot (outputs taxa-bar-plots.qzv)"
-	echo ""
-	exit 102
-fi
-	
 # Everything below these two codeblocks will go to a logfile
 name="waterway_log"
 if [[ -e $name.out ]] ; then
@@ -242,30 +295,6 @@ if [[ "$log" = true ]]; then
 	trap 'exec 2>&4 1>&3' 0 1 2 3
 	exec 1>>"${name}.out" 2>&1
 fi
-
-
-#>>>>>>>>>>>>>>>>>>>>>>>>>>MAKE MANIFEST BLOCK>>>>>>>>>>>>>>>>>>>>>>>
-if [ "$make_manifest" = true ]; then
-
-	pathtofastq="${filepath}/*.fastq.gz"
-	pathtopython="${scriptdir}/make_manifest.py"
-	echo $pathtofastq | python $pathtopython
-	
-	if [ "$?" -eq "0" ]; then
-		echo "A manifest.tsv file has been made in the"
-		echo "folder containing waterway.bash"
-		exit 0
-	else
-		echo ""
-		echo "manifest.py was not happy. Check to make sure"
-		echo "your filepath in config.txt is correct, and"
-		echo "that it does not end with a /"
-		echo ""
-		exit 1
-	fi
-fi
-
-#<<<<<<<<<<<<<<<<<<<<END MAKE MANIFEST BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>TESTING BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 #Figuring out where in the process we got to
@@ -890,7 +919,7 @@ if [ "$dada2_done" = false ]; then
 
 			qiime feature-table summarize \
 				--i-table "${qzaoutput}${element}-${element2}/table.qza" \
-				--m-sample-metadata-file $metadata
+				--m-sample-metadata-file $metadata \
 				--o-visualization "${qzaoutput}${element}-${element2}/table.qzv"
 
 			qiime feature-table tabulate-seqs \
