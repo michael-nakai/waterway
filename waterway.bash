@@ -103,6 +103,11 @@ if [[ "$hlp" = true ]] ; then
 	echo "and outputs core-metrics-phylogenetic and taxa-bar-plots. It"
 	echo "pulls variables from a config file specified in Master.txt."
 	echo ""
+	echo "USAGE"
+	echo "-------------------"
+	echo "waterway.bash [path_to_dir_containing_config_here] {options}"
+	echo "Note: the path_to_dir is mandatory when running options"
+	echo ""
 	echo "OPTIONS"
 	echo "-------------------"
 	echo -e "-M\tGenerate manifest file from files in filepath (in config.txt)"
@@ -165,7 +170,8 @@ if [ ! -f $srcpath ]; then
 	echo -e "qzaoutput=/home/username/folder with raw-data, metadata, and outputs folders/outputs/" >> config.txt
 	echo -e "metadata_filepath=/home/username/folder with raw-data, metadata, and outputs folders/metadata/metadata.tsv\n" >> config.txt
 	echo -e "#If using a manifest file, use the manifest filepath here" >> config.txt
-	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv\n" >> config.txt
+	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv" >> config.txt
+	echo -e "manifest_format=PairedEndFastqManifestPhred33V2\n" >> config.txt
 	echo -e "#Choose how much to trim/trunc here. All combinations of trim/trunc will be done (Dada2)" >> config.txt
 	echo -e "trimF=0" >> config.txt
 	echo -e "trimR=0" >> config.txt
@@ -187,7 +193,7 @@ if [ ! -f $srcpath ]; then
 	echo -e "min_read_length=100" >> config.txt
 	echo -e "max_read_length=400\n\n" >> config.txt
 	echo -e "#Do not change this" >> config.txt
-	echo -e 'demuxpairedendpath=${qzaoutput}imported_seqs.qza\n' >> config.txt
+	echo -e 'demuxpairedendpath=${qzaoutput}imported_seqs.qza' >> config.txt
 fi
 
 if [ ! -f $analysis_path ]; then
@@ -232,13 +238,13 @@ source $analysis_path 2> /dev/null
 
 #if -M was set, source config.txt and make a manifest file
 if [[ "$make_manifest" = true ]] ; then
-	python << END > "${str}/pyscript.py"
-import sys, os
-data = sys.stdin.readlines()
-print(data)
-data = data[0]
+	filepath2=`ls ${filepath}/*.gz`
+	export filepath2
+	python - <<END
+import os
+data = os.environ['filepath2']
 data = data.rstrip()
-data = data.split(" ")
+data = data.split("\n")
 
 newdata = []
 IDlist = []
@@ -273,9 +279,6 @@ with open("{0}/manifest.tsv".format(pth), "w") as file:
 		
 print("Ran without errors")
 END
-	chmod 755 "${str}pyscript.py"
-	echo "$filepath" | python "${str}pyscript.py"
-	rm -f "${str}pyscript.py"
 	exit 0
 fi
 
@@ -819,7 +822,7 @@ if [ "$import_done" = false ]; then
 		qiime tools import \
 			--type 'SampleData[PairedEndSequencesWithQuality]' \
 			--input-path $manifest \
-			--input-format PairedEndFastqManifestPhred33V2 \
+			--input-format $manifest_format \
 			--output-path ${qzaoutput}imported_seqs.qza
 			
 		if [[ "$verbose" = true ]]; then
