@@ -17,7 +17,7 @@ export LANG="en_US.utf-8"
 version="1.4"
 
 #TODO: add script path to .bashrc under alias='scriptPathHere'
-scriptdir=`dirname "$0"`
+
 
 #Setting very basic arguments (srcpath is located here)
 exitnow=false
@@ -26,6 +26,7 @@ if [ -z "$1" ]; then
 	#if argument doesnt exist, use current working dir
 	srcpath="./config.txt"
 	analysis_path="./optional_analyses.txt"
+	scriptdir=`dirname "$0"`
 else
 	#see if last char in $1 is '/', and if it is, trim it
 	str=$1
@@ -36,6 +37,7 @@ else
 	fi
 	srcpath="${str}/config.txt"
 	analysis_path="${str}/optional_analyses.txt"
+	scriptdir="${str}"
 fi
 
 
@@ -557,10 +559,10 @@ if [ "$train_classifier" = true ]; then
 	
 	if [ ${min_read_length} -eq "100" ] || [ ${max_read_length} -eq "400" ]; then
 		echo ""
-		echo "NOTE: min_read_length OR max_read_length IS LEFT AT DEFAULT"
+		echo "WARNING: min_read_length OR max_read_length HAS BEEN LEFT AT DEFAULT"
 		if [[ "$log" = true ]]; then
 			echo ""
-			echo "NOTE: min_read_length OR max_read_length IS LEFT AT DEFAULT" >&3
+			echo "WARNING: min_read_length OR max_read_length HAS BEEN LEFT AT DEFAULT" >&3
 		fi
 	fi
 
@@ -645,6 +647,7 @@ if [ "$train_classifier" = true ]; then
 				ggfastaGZ_exists=true
 			fi
 			if [ "$ggfastaGZ_exists" = true ] && [ "$ggfasta_exists" = false ]; then
+				echo "decompressing gg_13_5.fastq.gz..."
 				gunzip -k "${greengenes_path}/gg_13_5.fasta.gz"
 				ggfasta="${greengenes_path}/gg_13_5.fasta"
 			fi
@@ -657,6 +660,7 @@ if [ "$train_classifier" = true ]; then
 				ggfastaGZ_exists=true
 			fi
 			if [ "$ggfastaGZ_exists" = true ] && [ "$ggfasta_exists" = false ]; then
+				echo "decompressing gg_13_5.fastq.gz..."
 				gunzip -k "${scriptdir}/gg_13_5.fasta.gz"
 				ggfasta="${scriptdir}/gg_13_5.fasta"
 			fi
@@ -674,6 +678,7 @@ if [ "$train_classifier" = true ]; then
 				ggtaxGZ_exists=true
 			fi
 			if [ "$ggtaxGZ_exists" = true ] && [ "$ggtax_exists" = false ]; then
+				echo "decompressing gg_13_5_taxonomy.txt.gz..."
 				gunzip -k "${greengenes_path}/gg_13_5_taxonomy.txt.gz"
 				ggtaxonomy="${greengenes_path}/gg_13_5_taxonomy.txt"
 			fi
@@ -686,6 +691,7 @@ if [ "$train_classifier" = true ]; then
 				ggtaxGZ_exists=true
 			fi
 			if [ "$ggtaxGZ_exists" = true ] && [ "$ggtax_exists" = false ]; then
+				echo "decompressing gg_13_5_taxonomy.txt.gz..."
 				gunzip -k "${scriptdir}/gg_13_5_taxonomy.txt.gz"
 				ggtaxonomy="${scriptdir}/gg_13_5_taxonomy.txt"
 			fi
@@ -705,18 +711,43 @@ if [ "$train_classifier" = true ]; then
 		exit 199
 	fi
 	
-	if [[ ( ! -f "99_outs.qza" || ! -f "ref-taxonomy.qza" ) && ( ! -f "extracted-reads.qza" || ! -f "classifier.qza" ) ]] ; then
+	qzaflag=false
+	lateflag=false
+	if [[ ! -f "extracted-reads.qza" || ! -f "classifier.qza" ]] ; then
+		lateflag=true
+	fi
+	if [[ ! -f "99_otus.qza" || ! -f "ref-taxonomy.qza" ]] ; then
+		qzaflag=true
+	fi
+	
+	if [[ "$verbose" = true ]]; then
+		echo "qzaflag=${qzaflag}, lateflag=${lateflag}"
+	fi
+	if [[ "$log" = true ]]; then
+		echo "Importing ggtax..." >&3
+	echo $qzaflag $lateflag
+	
+	if [[ "$lateflag" = true && "$qzaflag" = true ]] ; then
 		#Run the import commands
+		echo ""
 		echo "Running initial file imports..."
 		if [[ "$log" = true ]]; then
 			echo "Running initial file imports..." >&3
 		fi
 		
+		echo "Importing ggfasta..."
+		if [[ "$log" = true ]]; then
+			echo "Importing ggfasta..." >&3
+		fi
 		qiime tools import \
 			--type 'FeatureData[Sequence]' \
 			--input-path $ggfasta \
 			--output-path "99_otus.qza"
 		
+		echo "Importing ggtax..."
+		if [[ "$log" = true ]]; then
+			echo "Importing ggtax..." >&3
+		fi
 		qiime tools import \
 			--type 'FeatureData[Taxonomy]' \
 			--input-format HeaderlessTSVTaxonomyFormat \
