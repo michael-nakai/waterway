@@ -723,9 +723,6 @@ if [ "$train_classifier" = true ]; then
 	if [[ "$verbose" = true ]]; then
 		echo "qzaflag=${qzaflag}, lateflag=${lateflag}"
 	fi
-	if [[ "$log" = true ]]; then
-		echo "Importing ggtax..." >&3
-	echo $qzaflag $lateflag
 	
 	if [[ "$lateflag" = true && "$qzaflag" = true ]] ; then
 		#Run the import commands
@@ -806,7 +803,8 @@ if [ "$train_classifier" = true ]; then
 	
 	echo "Classifier block has finished"
 	
-	exit 60
+	exit 0
+	
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END TRAINING CLASSIFIER BLOCK<<<<<<<<<<<<<<<<<<<<
