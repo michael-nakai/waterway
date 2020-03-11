@@ -14,10 +14,7 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.4"
-
-#TODO: add script path to .bashrc under alias='scriptPathHere'
-
+version="1.4.1"
 
 #Setting very basic arguments (srcpath is located here)
 exitnow=false
