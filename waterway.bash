@@ -14,7 +14,7 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.4.1"
+version="1.4.2"
 
 #Setting very basic arguments (srcpath is located here)
 exitnow=false
@@ -207,7 +207,7 @@ if [ ! -f $analysis_path ]; then
 	echo -e "#Phyloseq and alpha rarefaction" >> optional_analyses.txt
 	echo -e "rerun_phylo_and_alpha=false\n" >> optional_analyses.txt
 	echo -e "#Beta analysis" >> optional_analyses.txt
-	echo -e "rerun_beta_analysis=false\n" >> optional_analyses.txt
+	echo -e "rerun_beta_analysis=false" >> optional_analyses.txt
 	echo -e "rerun_group=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
 	echo -e "#Ancom analysis" >> optional_analyses.txt
 	echo -e "run_ancom=false" >> optional_analyses.txt
@@ -467,12 +467,14 @@ if [ "$rerun_phylo_and_alpha" = true ]; then
 		#Defining qzaoutput2
 		qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
 		
+		mkdir "${qzaoutput2}rerun_alpha" 2> /dev/null
+		
 		qiime diversity core-metrics-phylogenetic \
 			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
 			--i-table "${qzaoutput2}table.qza" \
 			--p-sampling-depth $sampling_depth \
 			--m-metadata-file $metadata_filepath \
-			--output-dir "${qzaoutput2}core-metrics-results"
+			--output-dir "${qzaoutput2}rerun_alpha/core-metrics-results"
 			
 		echo "Finished core-metrics-phylogenetic for ${qzaoutput2}"
 		if [[ "$log" = true ]]; then
@@ -484,16 +486,16 @@ if [ "$rerun_phylo_and_alpha" = true ]; then
 		fi
 
 		qiime diversity alpha-group-significance \
-			--i-alpha-diversity "${qzaoutput2}core-metrics-results/faith_pd_vector.qza" \
+			--i-alpha-diversity "${qzaoutput2}rerun_alpha/core-metrics-results/faith_pd_vector.qza" \
 			--m-metadata-file $metadata_filepath \
-			--o-visualization "${qzaoutput2}core-metrics-results/faith-pd-group-significance.qzv"
+			--o-visualization "${qzaoutput2}rerun_alpha/core-metrics-results/faith-pd-group-significance.qzv"
 
 		qiime diversity alpha-rarefaction \
-			--i-table "${qzaoutput2}table.qza" \
-			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
+			--i-table "${qzaoutput2}rerun_alpha/table.qza" \
+			--i-phylogeny "${qzaoutput2}rerun_alpha/rooted-tree.qza" \
 			--p-max-depth $alpha_depth \
 			--m-metadata-file $metadata_filepath \
-			--o-visualization "${qzaoutput2}alpha-rarefaction.qzv"
+			--o-visualization "${qzaoutput2}rerun_alpha/alpha-rarefaction.qzv"
 		
 		if [[ "$verbose" = true ]]; then
 			echo "Finished alpha rarefaction and group significance"
@@ -505,20 +507,28 @@ fi
 if [ "$rerun_beta_analysis" = true ]; then
 	for group in "${rerun_group[@]}"
 	do
-		for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
+		for fl in ${qzaoutput}*/rep-seqs.qza
 		do
-		
 			#Defining qzaoutput2
-			qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
+			qzaoutput2=${fl%"rep-seqs.qza"}
 			
-			echo "Starting beta diversity analysis"
+			if [ "$verbose" = true ]; then
+				echo "group = $group"
+				echo "fl = $fl"
+				echo "qzaoutput2 = $qzaoutput2"
+			fi
+			
+			mkdir "${qzaoutput2}beta_div_rerun" 2> /dev/null
+			mkdir "${qzaoutput2}beta_div_rerun/rerun_${group}" 2> /dev/null
+			
+			echo "Starting beta diversity analysis for ${group}"
 			
 			#For unweighted
 			qiime diversity beta-group-significance \
 				--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
 				--m-metadata-file $metadata_filepath \
 				--m-metadata-column $rerun_group \
-				--o-visualization "${qzaoutput2}core-metrics-results/${group}_unweighted-unifrac-beta-significance.qzv" \
+				--o-visualization "${qzaoutput2}beta_div_rerun/rerun_${group}/unweighted-unifrac-beta-significance.qzv" \
 				--p-pairwise
 			
 			#For weighted
@@ -526,7 +536,7 @@ if [ "$rerun_beta_analysis" = true ]; then
 				--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
 				--m-metadata-file $metadata_filepath \
 				--m-metadata-column $rerun_group \
-				--o-visualization "${qzaoutput2}core-metrics-results/${group}_weighted-unifrac-beta-significance.qzv" \
+				--o-visualization "${qzaoutput2}beta_div_rerun/rerun_${group}/weighted-unifrac-beta-significance.qzv" \
 				--p-pairwise
 			
 			echo "Finished beta diversity analysis for $group"
