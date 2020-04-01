@@ -37,9 +37,30 @@ else
 	scriptdir="${str}"
 fi
 
+#Useful helper functions here
+#Use with two arguments (str to dirname to be surveyed, str of name that should be returned), with one optional third argument (file extension)
+function return_unused_filename {
+	if [ $# -eq 3 ]; then
+		if [[ -e "${1}/$2.$3" ]] ; then
+			__temphere=$(echo `ls ${1}/{2}*.${3} | wc -l`)
+			unused_name="${1}/${2}${__temphere}.${3}"
+			touch $unused_name
+			echo $unused_name
+		fi
+	elif [ $# -eq 2 ]; then
+		if [[ -d "${1}/$2" ]] ; then
+			__temphere=$(echo `ls ${1}/{2}*.${3} | wc -l`)
+			unused_name="${1}/$2${__temphere}"
+			mkdir $unused_name
+			echo $unused_name
+		fi
+	else
+		:
+	fi
+}
 
 #---------------------------------------------------------------------------------------------------
-#------------------------------------------Function Start-------------------------------------------
+#-----------------------------------------Main Function Start---------------------------------------
 #---------------------------------------------------------------------------------------------------
 
 
@@ -79,10 +100,10 @@ do
 		train_classifier=true
 	fi
 	if [ "$op" == "-s" ] || [ "$op" == "--single_end" ] ; then
-		single_end_reads=true
+		single_end_reads=true #Currently does nothing
 	fi
 	if [ "$op" == "-g" ] || [ "$op" == "--graphs" ] ; then
-		graphs=true
+		graphs=true #Currently does nothing
 	fi
 	if [ "$op" == "-M" ] || [ "$op" == "--make-manifest" ] ; then
 		make_manifest=true
@@ -150,6 +171,8 @@ if [[ "$show_functions" = true ]] ; then
 	echo "10. qiime feature-classifier classify-sklearn (outputs taxonomy.qza)"
 	echo "11. qiime metadata tabulate (outputs taxonomy.qzv)"
 	echo "12. qiime taxa barplot (outputs taxa-bar-plots.qzv)"
+	echo ""
+	echo "For more detail, visit: http://marqueslab.erc.monash.edu/home/michael/waterway_docs/QYyBgctVnjnFvSFij7qJrMul6/index.html"
 	echo ""
 	exit 0
 fi
@@ -518,8 +541,10 @@ if [ "$rerun_beta_analysis" = true ]; then
 				echo "qzaoutput2 = $qzaoutput2"
 			fi
 			
-			mkdir "${qzaoutput2}beta_div_rerun" 2> /dev/null
-			mkdir "${qzaoutput2}beta_div_rerun/rerun_${group}" 2> /dev/null
+			mkdir "${qzaoutput2}beta_div_reruns" 2> /dev/null
+			return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1
+			echo $(return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1)
+			mkdir "${qzaoutput2}beta_div_reruns/rerun_${group}"
 			
 			echo "Starting beta diversity analysis for ${group}"
 			
@@ -528,7 +553,7 @@ if [ "$rerun_beta_analysis" = true ]; then
 				--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
 				--m-metadata-file $metadata_filepath \
 				--m-metadata-column $rerun_group \
-				--o-visualization "${qzaoutput2}beta_div_rerun/rerun_${group}/unweighted-unifrac-beta-significance.qzv" \
+				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/unweighted-unifrac-beta-significance.qzv" \
 				--p-pairwise
 			
 			#For weighted
@@ -536,7 +561,7 @@ if [ "$rerun_beta_analysis" = true ]; then
 				--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
 				--m-metadata-file $metadata_filepath \
 				--m-metadata-column $rerun_group \
-				--o-visualization "${qzaoutput2}beta_div_rerun/rerun_${group}/weighted-unifrac-beta-significance.qzv" \
+				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/weighted-unifrac-beta-significance.qzv" \
 				--p-pairwise
 			
 			echo "Finished beta diversity analysis for $group"
