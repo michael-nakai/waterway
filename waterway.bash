@@ -73,6 +73,7 @@ manifest_status=false
 show_functions=false
 train_classifier=false
 do_fastqc=false
+rename_files=false #Currently does nothing
 single_end_reads=false #Currently does nothing
 graphs=false #Currently does nothing
 
@@ -111,6 +112,9 @@ do
 	fi
 	if [ "$op" == "-F" ] || [ "$op" == "--fastqc" ] ; then
 		do_fastqc=true
+	fi
+	if [ "$op" == "-r" ] || [ "$op" == "--rename" ] ; then
+		rename_files=true #Currently does nothing
 	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
 		echo "Currently running waterway $version"
@@ -182,7 +186,7 @@ if [[ "$show_functions" = true ]] ; then
 fi
 
 if [[ "$do_fastqc" = true ]] ; then
-	mkdir ${projpath}fastq_reports 2 > /dev/null
+	mkdir ${projpath}fastq_reports 2> /dev/null
 	fastqc ${filepath}/*.fastq.gz
 	mv ${filepath}/*.zip ${filepath}/*.html ${projpath}fastq_reports
 	multiqc ${projpath}fastq_reports/*
@@ -269,13 +273,20 @@ fi
 source $srcpath 2> /dev/null
 source $analysis_path 2> /dev/null
 
+
+#>>>>>>>>>>>>>>>>>>>>START MANIFEST BLOCK>>>>>>>>>>>>>>>>>>>>
 #if -M was set, source config.txt and make a manifest file
 if [[ "$make_manifest" = true ]] ; then
 	filepath2=`ls ${filepath}/*.gz`
+	export filepath
+	export scriptdir
+	export projpath
 	export filepath2
 	python - <<END
 import os
 data = os.environ['filepath2']
+rawpath = os.environ['filepath']
+scriptdir = os.environ['scriptdir']
 data = data.rstrip()
 data = data.split("\n")
 
@@ -295,18 +306,15 @@ for element in newdata:
 #Remove duplicate IDs from IDlist
 IDlist = list(dict.fromkeys(IDlist))
 
-#Set pth to the path to the script directory
-pth = os.getcwd()
-
 #Make the tsv. The for loop makes the individual rows for each ID
-with open("{0}/manifest.tsv".format(pth), "w") as file:
+with open("{0}/manifest.tsv".format(scriptdir), "w") as file:
 	file.write("#SampleID\tforward-absolute-filepath\treverse-absolute-filepath")
 	i = 0
 	for element in IDlist:
 		a = element
-		b = "{0}/{1}".format(pth, newdata[i])
+		b = "{0}/{1}".format(rawpath, newdata[i])
 		i += 1
-		c = "{0}/{1}".format(pth, newdata[i])
+		c = "{0}/{1}".format(rawpath, newdata[i])
 		i += 1
 		file.write("\n{0}\t{1}\t{2}".format(a, b, c))
 		
@@ -315,6 +323,9 @@ END
 	exit 0
 fi
 
+#<<<<<<<<<<<<<<<<<<<<END MANIFEST BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+#>>>>>>>>>>>>>>>>>>>>START LOG BLOCK>>>>>>>>>>>>>>>>>>>>
 # Everything below these two codeblocks will go to a logfile
 name="waterway_log"
 if [[ -e $name.out ]] ; then
@@ -331,6 +342,12 @@ if [[ "$log" = true ]]; then
 	trap 'exec 2>&4 1>&3' 0 1 2 3
 	exec 1>>"${name}.out" 2>&1
 fi
+
+#<<<<<<<<<<<<<<<<<<<<END LOG BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+#>>>>>>>>>>>>>>>>>>>>START RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
+# TODO: Put rename.bash into waterway, and have waterway generate gform.txt when first run.
+#>>>>>>>>>>>>>>>>>>>>END RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>TESTING BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 #Figuring out where in the process we got to
