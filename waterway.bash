@@ -14,7 +14,7 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.4.2"
+version="1.4.3"
 
 #Setting very basic arguments (srcpath is located here)
 exitnow=false
@@ -72,6 +72,7 @@ hlp=false
 manifest_status=false
 show_functions=false
 train_classifier=false
+do_fastqc=false
 single_end_reads=false #Currently does nothing
 graphs=false #Currently does nothing
 
@@ -107,6 +108,9 @@ do
 	fi
 	if [ "$op" == "-M" ] || [ "$op" == "--make-manifest" ] ; then
 		make_manifest=true
+	fi
+	if [ "$op" == "-F" ] || [ "$op" == "--fastqc" ] ; then
+		do_fastqc=true
 	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
 		echo "Currently running waterway $version"
@@ -177,6 +181,13 @@ if [[ "$show_functions" = true ]] ; then
 	exit 0
 fi
 
+if [[ "$do_fastqc" = true ]] ; then
+	mkdir ${projpath}fastq_reports 2 > /dev/null
+	fastqc ${filepath}/*.fastq.gz
+	mv ${filepath}/*.zip ${filepath}/*.html ${projpath}fastq_reports
+	multiqc ${projpath}fastq_reports/*
+fi
+
 #See if configs exist
 if [ ! -f $srcpath ]; then
 	exitnow=true
@@ -221,7 +232,7 @@ fi
 if [ ! -f $analysis_path ]; then
 	exitnow=true
 	echo ""
-	echo "An analysis_to_rerun file was not found, and will be created now. Please do not"
+	echo "An optional_analyses file was not found, and will be created now. Please do not"
 	echo "touch this file if this is the first time analysing your data set."
 	echo ""
 	
@@ -996,7 +1007,7 @@ if [ "$dada2_done" = false ]; then
 
 			#Checks if denoising worked or whether pairing up ends failed due to low overlap
 			if [ ! -f "${qzaoutput}${element}-${element2}/rep-seqs.qza" ]; then
-				"No output" > "${qzaoutput}${element}-${element2}/NoOutput.txt"
+				echo "No output" > "${qzaoutput}${element}-${element2}/NoOutput.txt"
 				
 				echo "No output for ${element}-${element2}"
 				if [[ "$log" = true ]]; then
