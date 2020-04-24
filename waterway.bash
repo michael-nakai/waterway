@@ -14,7 +14,7 @@ export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
 #Version number here
-version="1.4.3"
+version="1.5"
 
 #Setting very basic arguments (srcpath is located here)
 exitnow=false
@@ -23,6 +23,7 @@ if [ -z "$1" ]; then
 	#if argument doesnt exist, use current working dir
 	srcpath="./config.txt"
 	analysis_path="./optional_analyses.txt"
+	rename_path="./patterns_to_rename.txt"
 	scriptdir=`dirname "$0"`
 else
 	#see if last char in $1 is '/', and if it is, trim it
@@ -34,6 +35,7 @@ else
 	fi
 	srcpath="${str}/config.txt"
 	analysis_path="${str}/optional_analyses.txt"
+	rename_path="${str}/patterns_to_rename.txt"
 	scriptdir="${str}"
 fi
 
@@ -73,7 +75,7 @@ manifest_status=false
 show_functions=false
 train_classifier=false
 do_fastqc=false
-rename_files=false #Currently does nothing
+rename_files=false
 single_end_reads=false #Currently does nothing
 graphs=false #Currently does nothing
 
@@ -95,13 +97,13 @@ do
 	if [ "$op" == "-h" ] || [ "$op" == "--help" ] ; then
 		hlp=true
 	fi
-	if [ "$op" == "-f" ] || [ "$op" == "--show_functions" ] ; then
+	if [ "$op" == "-f" ] || [ "$op" == "--show-functions" ] ; then
 		show_functions=true
 	fi
-	if [ "$op" == "-c" ] || [ "$op" == "--train_classifier" ] ; then
+	if [ "$op" == "-c" ] || [ "$op" == "--train-classifier" ] ; then
 		train_classifier=true
 	fi
-	if [ "$op" == "-s" ] || [ "$op" == "--single_end" ] ; then
+	if [ "$op" == "-s" ] || [ "$op" == "--single-end" ] ; then
 		single_end_reads=true #Currently does nothing
 	fi
 	if [ "$op" == "-g" ] || [ "$op" == "--graphs" ] ; then
@@ -113,8 +115,8 @@ do
 	if [ "$op" == "-F" ] || [ "$op" == "--fastqc" ] ; then
 		do_fastqc=true
 	fi
-	if [ "$op" == "-r" ] || [ "$op" == "--rename" ] ; then
-		rename_files=true #Currently does nothing
+	if [ "$op" == "-r" ] || [ "$op" == "--remove-underscores" ] ; then
+		rename_files=true
 	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
 		echo "Currently running waterway $version"
@@ -273,6 +275,36 @@ fi
 source $srcpath 2> /dev/null
 source $analysis_path 2> /dev/null
 
+#Putting in flexibility in filepath inputs for projpath, filepath, and qzaoutput
+#see if last char in filepath is '/', and if it is, trim it
+str=$filepath
+i=$((${#str}-1)) 2> /dev/null
+j=${str:$i:1} 2> /dev/null
+if [ $j == '/' ]; then
+	str=${str%?}
+fi
+filepath=${str}
+
+temparray=($projpath $qzaoutput)
+fuck=1
+for e in ${temparray[@]}; do
+	#see if last char in e is '/', and if not, add it
+	str=$e
+	i=$((${#str}-1)) 2> /dev/null
+	j=${str:$i:1} 2> /dev/null
+	if [ $j != '/' ]; then
+		str="${str}/"
+	fi
+	
+	if [ $fuck -eq 1 ]; then
+		projpath=$str
+	fi
+	if [ $fuck -eq 2 ]; then
+		qzaoutput=$str
+	fi
+	fuck=$(($fuck+1))
+done
+
 
 #>>>>>>>>>>>>>>>>>>>>START MANIFEST BLOCK>>>>>>>>>>>>>>>>>>>>
 #if -M was set, source config.txt and make a manifest file
@@ -346,7 +378,54 @@ fi
 #<<<<<<<<<<<<<<<<<<<<END LOG BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #>>>>>>>>>>>>>>>>>>>>START RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
-# TODO: Put rename.bash into waterway, and have waterway generate gform.txt when first run.
+if [[ "$rename_files" = true ]] ; then
+
+	#Check if patterns_to_rename.txt exists. If not, make it and exit.
+	if [ ! -f $rename_path ]; then
+		echo ""
+		echo "A patterns_to_rename.txt file will be made. Please include any"
+		echo "patterns with underscores included to search for. Any files that"
+		echo "include these patterns will have the included underscore changed to"
+		echo "a hyphen."
+		echo ""
+	
+		touch patterns_to_rename.txt
+		
+		echo "pattern1_to_hyphenate_" >> patterns_to_rename.txt
+		echo "pattern2_to_hyphanate_" >> patterns_to_rename.txt
+		
+		exit 0
+	fi
+	
+	mapfile -t gform < $rename_path
+	origfold=$(pwd)
+	dirWithFiles="${filepath}/"
+	
+	cd $dirWithFiles
+	echo "finished cd-ing into raw-files folder"
+
+	for form in ${gform[@]};
+	do
+		echo "Starting $form"
+		formfiles=$(find . -maxdepth 1 -name "*${form}*")
+		new=${form//_/-}
+		
+		# Trying to shorten down the filename until only the $form is left
+		# Then we replace the underscores with dashes for the $new
+		# Then we can rename the file by finding the $form and replacing with the $new via rename
+		for fl in ${formfiles[@]}; 
+		do
+			echo "renaming $fl"
+			rename "s/${form}*/${new}/" $fl
+		done
+		echo ""
+	done
+
+	echo "Going back to $origfold"
+	cd $origfold
+	echo "Renaming done."
+	exit 0
+fi
 #>>>>>>>>>>>>>>>>>>>>END RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>TESTING BLOCK>>>>>>>>>>>>>>>>>>>>>>>
@@ -466,6 +545,10 @@ echo ""
 
 #Find if tst or verbose is true, and run the codeblock if true
 if [ "$tst" = true ] || [ "$verbose" = true ]; then
+	echo "projpath = $projpath"
+	echo "filepath = $filepath"
+	echo "qzaoutput = $qzaoutput"
+	echo ""
 	echo "manifest_status is $manifest_status"
 	if [[ "$manifest_status" = true ]]; then
 		echo "manifest is $manifest"
