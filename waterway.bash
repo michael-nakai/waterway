@@ -15,13 +15,13 @@ export LANG="en_US.utf-8"
 
 #Check that a Qiime2 environment is active
 if ! type "qiime" > /dev/null 2>&1; then
-	echo ""
-	echo "A Qiime2 environment isnt activated yet."
-	echo "Please activate an environment first and make Qiime2 commands"
-	echo "available to use. If installed using conda, use the command"
-	echo "conda info --envs to find all installed environments, then"
-	echo "activate one using conda activate ______ (env name in the underlined part)"
-	echo ""
+	echo "" >&2
+	echo "A Qiime2 environment isnt activated yet." >&2
+	echo "Please activate an environment first and make Qiime2 commands" >&2
+	echo "available to use. If installed using conda, use the command" >&2
+	echo "conda info --envs to find all installed environments, then" >&2
+	echo "activate one using conda activate ______ (env name in the underlined part)" >&2
+	echo "" >&2
 	exit 1
 fi
 
@@ -165,6 +165,7 @@ if [[ "$hlp" = true ]] ; then
 	echo -e "-l\tEnable logging to a log file that is made where this script is"
 	echo -e "-f\tShow the exact list of functions used in this script and their output files"
 	echo -e "-c\tTrain a greengenes 13_5 99% coverage otu classifier."
+	echo -e "-r\tReplaces underscores with hyphens from filenames that match a pattern that includes underscores to replace."
 	echo -e "-h\tShow this help dialogue"
 	echo ""
 	exit 0
@@ -719,7 +720,7 @@ if [ "$train_classifier" = true ]; then
 	#Check to see whether variables have been inputted or changed from defaults
 	if [ "${forward_primer}" = "GGGGGGGGGGGGGGGGGG" ] || [ "${reverse_primer}" = "AAAAAAAAAAAAAAAAAA" ]; then 
 		echo "Forward or reverse primer not set, exiting..."
-		exit 8
+		exit 2
 	fi
 	
 	if [ ${min_read_length} -eq "100" ] || [ ${max_read_length} -eq "400" ]; then
@@ -741,7 +742,7 @@ if [ "$train_classifier" = true ]; then
 			echo "Please either fix the greengenes_path in the config file, or set" >&3
 			echo "download_greengenes_files_for_me to true" >&3
 		fi
-		exit 120
+		exit 20
 	fi
 	
 	if [ "$download_greengenes_files_for_me" = false ] && [ ! -f "${greengenes_path}gg_13_5.fasta.gz" ]; then
@@ -753,7 +754,7 @@ if [ "$train_classifier" = true ]; then
 			echo "Please download these first, set download_greengenes_files_for_me to true in the config," >&3
 			echo "or rename your files to these names if already downloaded." >&3
 		fi
-		exit 121
+		exit 21
 	fi
 	
 	if [ "$download_greengenes_files_for_me" = false ] && [ ! -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ]; then
@@ -765,7 +766,7 @@ if [ "$train_classifier" = true ]; then
 			echo "Please download these first, set download_greengenes_files_for_me to true in the config," >&3
 			echo "or rename your files to these names if already downloaded." >&3
 		fi
-		exit 122
+		exit 21
 	fi
 
 	#Figure out what exists and what doesn't. If download_greengenes_files_for_me is true, wget the files if needed.
@@ -873,7 +874,7 @@ if [ "$train_classifier" = true ]; then
 	
 	if [ "$ggfasta" == "" ] || [ "$ggtaxonomy" == "" ]; then
 		echo "There was a problem with setting the fasta/taxonomy path. Please report this bug."
-		exit 199
+		exit 150
 	fi
 	
 	qzaflag=false
@@ -1079,11 +1080,11 @@ if [ "$dada2_done" = false ]; then
 	#Break here if Dada2 options haven't been set
 	if [ ${#truncF[@]} -eq 0 ]; then 
 		echo "Forward read truncation not set, exiting..."
-		exit 1
+		exit 10
 	fi
 	if [ ${#truncR[@]} -eq 0 ]; then
 		echo "Backwards read truncation not set, exiting..."
-		exit 1
+		exit 11
 	fi
 	
 	for e in ${truncF[@]}
@@ -1199,11 +1200,11 @@ if [ "$divanalysis_done" = false ]; then
 	#Break here if sampling_depth or alpha_depth are 0
 	if [ $sampling_depth -eq 0 ] ; then
 		echo "Sampling depth not set"
-		exit 3
+		exit 12
 	fi
 	if [ $alpha_depth -eq 0 ] ; then
 		echo "Alpha depth not set"
-		exit 4
+		exit 13
 	fi
 
 	for fl in ${qzaoutput}*/table.qza
@@ -1313,7 +1314,7 @@ fi
 if [ ! -f $classifierpath ] ; then
 	echo "File does not exist at the classifier path"
 	echo "Please change classifier path in the config file (.txt file)"
-	exit 12
+	exit 14
 fi
 
 if [ "$sklearn_done" = false ]; then
@@ -1358,8 +1359,7 @@ if [ "$sklearn_done" = false ]; then
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END SK_LEARN<<<<<<<<<<<<<<<<<<<<
-#---------------------------------------------------------------------------------------------------
-#>>>>>>>>>>>>>>>>>>>>START PICRUST2>>>>>>>>>>>>>>>>>>>>>>>
+
 
 
 #####################################################################################################
@@ -1518,6 +1518,24 @@ fi
 
 #<<<<<<<<<<<<<<<<<<<<END PCOA BIPLOT<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>START PICRUST2>>>>>>>>>>>>>>>>>>>>>>>
+
+#TODO: Check if picrust2 component is installed for current version. If not, exit
+
+if [ "$run_picrust" = true ] && [ "$sklearn_done" = true ]; then
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		#Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+		mkdir "${qzaoutput2}biplot_outputs" 2> /dev/null
+		
+		echo "Creating rarefied table..."
+fi
+
+#<<<<<<<<<<<<<<<<<<<<END PICRUST2<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
 #>>>>>>>>>>>>>>>>>>>>>>>>>>GNEISS GRADIENT CLUSTERING>>>>>>>>>>>>>>>>>>>>>>>
 
 if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
@@ -1606,10 +1624,6 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 	if [[ "$log" = true ]]; then
 		echo "Finished Gneiss gradient-clustering analysis block" >&3
 	fi
-else
-	echo "Either run_gneiss is set to false in optional_analyses.txt, or the taxonomic"
-	echo "labelling has not been finished for your data. Gneiss analyses will not be performed."
-	echo ""
 fi
 
 
@@ -1623,10 +1637,10 @@ fi
 
 #<<<<<<<<<<<<<<<<<<<<END SORT AND OUTPUT<<<<<<<<<<<<<<<<<<<<
 
-echo "The script has finished successfully"
+echo "waterway has finished successfully"
 echo ""
 if [[ "$log" = true ]]; then
-	echo "The script has finished successfully" >&3
+	echo "waterway has finished successfully" >&3
 fi
 
 exit 0

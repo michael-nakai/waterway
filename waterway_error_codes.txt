@@ -1,0 +1,19 @@
+General Categories:
+0 Successful execution
+1-9 General, basic errors
+10-19 config.txt errors
+20-29 classifier training errors
+
+
+Exit Codes:
+0 -- Successful execution, expected exit.
+1 -- Qiime2 environment is not loaded, or access to qiime commands are blocked.
+10 -- Forward read truncation was not set to an integer above 0.
+11 -- Reverse read truncation was not set to an integer above 0.
+12 -- The sampling depth was not set to an integer above 0.
+13 -- The alpha depth was not set to an integer above 0.
+14 -- The classifier path does not exist or does not refer to a classifier file
+20 -- Unexpected error, ggfasta and ggtaxonomy paths were not set when making a classifier file. Please report this bug.
+21 -- When making a classifier file, download_greengenes_files_for_me is set to false or the greengenes directory path doesnt exist.
+22 -- When making a classifier file, gg_13_5.fastq.gz is missing, and download_greengenes_files_for_me is set to false.
+23 -- When making a classifier file, gg_13_5_taxonomy.txt.gz is missing, and download_greengenes_files_for_me is set to false.
