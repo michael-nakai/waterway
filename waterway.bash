@@ -26,7 +26,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 #Version number here
-version="1.5b"
+version="2.0"
 
 #Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -227,31 +227,33 @@ if [ ! -f $srcpath ]; then
 	echo -e "filepath=/home/username/folder with raw-data, metadata, and outputs folders/raw-data" >> config.txt
 	echo -e "qzaoutput=/home/username/folder with raw-data, metadata, and outputs folders/outputs/" >> config.txt
 	echo -e "metadata_filepath=/home/username/folder with raw-data, metadata, and outputs folders/metadata/metadata.tsv\n" >> config.txt
+	
 	echo -e "#If using a manifest file, use the manifest filepath here" >> config.txt
 	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv" >> config.txt
 	echo -e "manifest_format=PairedEndFastqManifestPhred33V2\n" >> config.txt
+	
 	echo -e "#Choose how much to trim/trunc here. All combinations of trim/trunc will be done (Dada2)" >> config.txt
 	echo -e "trimF=0" >> config.txt
 	echo -e "trimR=0" >> config.txt
 	echo -e "truncF=() #Trunc combinations here. Ex: (250 240 230)" >> config.txt
 	echo -e "truncR=() #Trunc combinations here. Ex: (200 215 180)\n" >> config.txt
+	
 	echo -e "#Determine your sampling depth for core-metrics-phylogenetic here. You do not want to exclude too many samples" >> config.txt
 	echo -e "sampling_depth=0\n" >> config.txt
-	echo -e "#Determine your max depth for the alpha rarefaction here." >> config.txt
-	echo -e "alpha_depth=0\n" >> config.txt
+	
 	echo -e "#Determine what group you'd like to compare between for beta diversity. It needs to match the group name in the metadata exactly, caps sensitive." >> config.txt
 	echo -e "beta_diversity_group=Group_Here\n" >> config.txt
+	
 	echo -e "#Path to the trained classifier for sk-learn" >> config.txt
 	echo -e "classifierpath=/home/username/classifier.qza\n" >> config.txt
+	
 	echo -e "#Set these settings if training a classifier" >> config.txt
 	echo -e "download_greengenes_files_for_me=false" >> config.txt
 	echo -e "greengenes_path=/home/username/dir_containing_greengenes_files/" >> config.txt
 	echo -e "forward_primer=GGGGGGGGGGGGGGGGGG" >> config.txt
 	echo -e "reverse_primer=AAAAAAAAAAAAAAAAAA" >> config.txt
 	echo -e "min_read_length=100" >> config.txt
-	echo -e "max_read_length=400\n\n" >> config.txt
-	echo -e "#Do not change this" >> config.txt
-	echo -e 'demuxpairedendpath=${qzaoutput}imported_seqs.qza' >> config.txt
+	echo -e "max_read_length=400" >> config.txt
 fi
 
 if [ ! -f $analysis_path ]; then
@@ -265,17 +267,33 @@ if [ ! -f $analysis_path ]; then
 	
 	echo -e "#Phyloseq and alpha rarefaction" >> optional_analyses.txt
 	echo -e "rerun_phylo_and_alpha=false\n" >> optional_analyses.txt
+	
 	echo -e "#Beta analysis" >> optional_analyses.txt
 	echo -e "rerun_beta_analysis=false" >> optional_analyses.txt
 	echo -e "rerun_group=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
+	
 	echo -e "#Ancom analysis" >> optional_analyses.txt
 	echo -e "run_ancom=false" >> optional_analyses.txt
 	echo -e "collapse_taxa_to_level=6" >> optional_analyses.txt
 	echo -e "group_to_compare=('Group1' 'Group2' 'etc...')" >> optional_analyses.txt
 	echo -e "run_ancom_composition=false\n" >> optional_analyses.txt
+	
+	echo -e "#Picrust2 Analysis (Picrust2 must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
+	echo -e "run_picrust=false" >> optional_analyses.txt
+	echo -e "hsp_method=mp #Default value, shouldnt need to change" >> optional_analyses.txt
+	echo -e "max_nsti=2 #Default value, shouldnt need to change\n" >> optional_analyses.txt
+	
 	echo -e "#PCoA Biplot Analysis" >> optional_analyses.txt
 	echo -e "run_biplot=false" >> optional_analyses.txt
 	echo -e "number_of_dimensions=20\n" >> optional_analyses.txt
+	
+	echo -e "#DEICODE analysis (DEICODE must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
+	echo -e "run_deicode=false" >> optional_analyses.txt
+	echo -e "num_of_features=8" >> optional_analyses.txt
+	echo -e "min_feature_count=2" >> optional_analyses.txt
+	echo -e "min_sample_count=100" >> optional_analyses.txt
+	echo -e "beta_rerun_group=('Group1' 'Group2' 'etc...') #Put the metadata columns here\n" >> optional_analyses.txt
+	
 	echo -e "#Gneiss gradient-clustering analyses" >> optional_analyses.txt
 	echo -e "run_gneiss=false" >> optional_analyses.txt
 	echo -e "use_correlation_clustering=true" >> optional_analyses.txt
@@ -293,6 +311,8 @@ fi
 
 source $srcpath 2> /dev/null
 source $analysis_path 2> /dev/null
+
+demuxpairedendpath=${qzaoutput}imported_seqs.qza
 
 #Putting in flexibility in filepath inputs for projpath, filepath, and qzaoutput
 #see if last char in filepath is '/', and if it is, trim it
@@ -647,7 +667,7 @@ if [ "$rerun_phylo_and_alpha" = true ]; then
 		qiime diversity alpha-rarefaction \
 			--i-table "${qzaoutput2}rerun_alpha/table.qza" \
 			--i-phylogeny "${qzaoutput2}rerun_alpha/rooted-tree.qza" \
-			--p-max-depth $alpha_depth \
+			--p-max-depth $sampling_depth \
 			--m-metadata-file $metadata_filepath \
 			--o-visualization "${qzaoutput2}rerun_alpha/alpha-rarefaction.qzv"
 		
@@ -1197,14 +1217,10 @@ fi
 
 if [ "$divanalysis_done" = false ]; then
 
-	#Break here if sampling_depth or alpha_depth are 0
+	#Break here if sampling_depth is 0
 	if [ $sampling_depth -eq 0 ] ; then
 		echo "Sampling depth not set"
 		exit 12
-	fi
-	if [ $alpha_depth -eq 0 ] ; then
-		echo "Alpha depth not set"
-		exit 13
 	fi
 
 	for fl in ${qzaoutput}*/table.qza
@@ -1246,7 +1262,7 @@ if [ "$divanalysis_done" = false ]; then
 		qiime diversity alpha-rarefaction \
 			--i-table "${qzaoutput2}table.qza" \
 			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
-			--p-max-depth $alpha_depth \
+			--p-max-depth $sampling_depth \
 			--m-metadata-file $metadata_filepath \
 			--o-visualization "${qzaoutput2}alpha-rarefaction.qzv"
 		
@@ -1378,6 +1394,9 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 	
 	echo ""
 	echo "Starting ANCOM analysis..."
+	if [[ "$log" = true ]]; then
+		echo "Starting ANCOM analysis..." >&3
+	fi
 	
 	for group in "${group_to_compare[@]}"
 	do
@@ -1388,6 +1407,9 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 			if [ "$run_ancom_composition" = true ]; then
 			
 				echo "Starting composition rerun for $group"
+				if [[ "$log" = true ]]; then
+					echo "Starting composition rerun for $group" >&3
+				fi
 			
 				#Defining qzaoutput2
 				qzaoutput2=${repqza%"rep-seqs.qza"}
@@ -1396,6 +1418,9 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 				mkdir "${qzaoutput2}ancom_outputs/${group}" 2> /dev/null
 				
 				echo "Feature table filtering starting for $group"
+				if [[ "$log" = true ]]; then
+					echo "Feature table filtering starting for $group" >&3
+				fi
 				
 				qiime feature-table filter-features \
 					--i-table "${qzaoutput2}table.qza" \
@@ -1411,6 +1436,10 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 					
 				echo "Feature table filtering finished"
 				echo "Taxa collapsing starting..."
+				if [[ "$log" = true ]]; then
+					echo echo "Feature table filtering finished" >&3
+					echo "Taxa collapsing starting..." >&3
+				fi
 			
 				qiime taxa collapse \
 					--i-table "${qzaoutput2}ancom_outputs/${group}/filtered_table.qza" \
@@ -1419,16 +1448,26 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 					--o-collapsed-table "${qzaoutput2}ancom_outputs/${group}/genus.qza"
 				
 				echo "Finished taxa collapsing"
-				echo "Starting pseudocount adding"
+				echo "Starting pseudocount adding..."
+				if [[ "$log" = true ]]; then
+					echo "Finished taxa collapsing" >&3
+					echo "Starting pseudocount adding..." >&3
+				fi
 				
 				qiime composition add-pseudocount \
 					--i-table "${qzaoutput2}ancom_outputs/${group}/genus.qza" \
 					--o-composition-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo.qza"
 				
 				echo "Finished pseudocount adding"
+				if [[ "$log" = true ]]; then
+					echo "Finished pseudocount adding" >&3
+				fi
 			fi
 			
 			echo "Starting ancom composition"
+			if [[ "$log" = true ]]; then
+				echo "Starting ancom composition" >&3
+			fi
 			
 			qiime composition ancom \
 				--i-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo.qza" \
@@ -1437,6 +1476,9 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 				--o-visualization "${qzaoutput2}ancom_outputs/${group}/ancom_group.qzv"
 		
 			echo "Finished ancom composition and the ancom block for $group"
+			if [[ "$log" = true ]]; then
+				echo "Finished ancom composition and the ancom block for $group" >&3
+			fi
 		done
 	done
 
@@ -1444,14 +1486,17 @@ else
 	echo "Either run_ancom is set to false, or taxonomic analyses"
 	echo "have not been completed on the dataset. Ancom analysis"
 	echo "will not proceed."
-
+	if [[ "$log" = true ]]; then
+		echo "Either run_ancom is set to false, or taxonomic analyses" >&3
+		echo "have not been completed on the dataset. Ancom analysis" >&3
+		echo "will not proceed." >&3
+	fi
 fi
 
 
 #<<<<<<<<<<<<<<<<<<<<END ANCOM<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
 #>>>>>>>>>>>>>>>>>>>>>>>>>>PCOA BIPLOT>>>>>>>>>>>>>>>>>>>>>>>
-
 
 if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 
@@ -1464,39 +1509,58 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 		mkdir "${qzaoutput2}biplot_outputs" 2> /dev/null
 		
 		echo "Creating rarefied table..."
+		if [[ "$log" = true ]]; then
+			echo "Creating rarefied table..." >&3
+		fi
 		
 		qiime feature-table rarefy \
 			--i-table "${qzaoutput2}table.qza" \
 			--p-sampling-depth $sampling_depth \
 			--o-rarefied-table "${qzaoutput2}biplot_outputs/rarefied_table.qza"
 		
+		echo "Creating a braycurtis distance matrix..."
+		if [[ "$log" = true ]]; then
+			echo "Creating a braycurtis distance matrix..." >&3
+		fi
+		
 		qiime diversity beta \
 			--i-table "${qzaoutput2}biplot_outputs/rarefied_table.qza" \
 			--p-metric braycurtis \
 			--o-distance-matrix "${qzaoutput2}biplot_outputs/braycurtis_div.qza"
+		
+		echo "Creating a PCoA..."
+		if [[ "$log" = true ]]; then
+			echo "Creating a PCoA..." >&3
+		fi
 		
 		qiime diversity pcoa \
 			--i-distance-matrix "${qzaoutput2}biplot_outputs/braycurtis_div.qza" \
 			--p-number-of-dimensions $number_of_dimensions \
 			--o-pcoa "${qzaoutput2}biplot_outputs/braycurtis_pcoa.qza"
 		
-		echo "Finished rarefied table"
 		echo "Starting relative frequency table generation..."
+		if [[ "$log" = true ]]; then
+			echo "Starting relative frequency table generation..." >&3
+		fi
 		
 		qiime feature-table relative-frequency \
 			--i-table "${qzaoutput2}biplot_outputs/rarefied_table.qza" \
 			--o-relative-frequency-table "${qzaoutput2}biplot_outputs/rarefied_table_relative.qza"
 			
-		echo "Finished relative frequency table generation"
 		echo "Making the biplot for unweighted UniFrac..."
+		if [[ "$log" = true ]]; then
+			echo "Making the biplot for unweighted UniFrac..." >&3
+		fi
 		
 		qiime diversity pcoa-biplot \
 			--i-pcoa "${qzaoutput2}biplot_outputs/braycurtis_pcoa.qza" \
 			--i-features "${qzaoutput2}biplot_outputs/rarefied_table_relative.qza" \
 			--o-biplot "${qzaoutput2}biplot_outputs/biplot_matrix_unweighted_unifrac.qza"
 			
-		echo "Finished biplot generation"
 		echo "Producing an emperor plot..."
+		if [[ "$log" = true ]]; then
+			echo "Producing an emperor plot..." >&3
+		fi
 		
 		qiime emperor biplot \
 			--i-biplot "${qzaoutput2}biplot_outputs/biplot_matrix_unweighted_unifrac.qza" \
@@ -1507,6 +1571,10 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 		echo "Finished producing the emperor plot"
 		echo "PCoA biplot analysis finished"
 		echo ""
+		if [[ "$log" = true ]]; then
+			echo "Finished producing the emperor plot" >&3
+			echo "PCoA biplot analysis finished" >&3
+		fi
 	done
 else
 	echo "Either run_biplot is set to false, or taxonomic analyses"
@@ -1518,6 +1586,95 @@ fi
 
 #<<<<<<<<<<<<<<<<<<<<END PCOA BIPLOT<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>START DEICODE>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$run_deicode" = true ] && [ "$sklearn_done" = true ]; then
+
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		#Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+		mkdir "${qzaoutput2}deicode_outputs" 2> /dev/null
+		
+		echo "Running beta diversity ordination files..."
+		if [[ "$log" = true ]]; then
+			echo "Running beta diversity ordination files..." >&3
+		fi
+
+		qiime deicode rpca \
+			--i-table "${qzaoutput2}table.qza" \
+			--p-min-feature-count $min_feature_count \
+			--p-min-sample-count $min_sample_count \
+			--o-biplot "${qzaoutput2}deicode_outputs/ordination.qza" \
+			--o-distance-matrix "${qzaoutput2}deicode_outputs/distance.qza"
+		
+		echo "Finished beta diversity ordination files..."
+		echo "Creating biplot..."
+		if [[ "$log" = true ]]; then
+			echo "Finished beta diversity ordination files..." >&3
+			echo "Creating biplot..." >&3
+		fi
+		
+		#TODO: How the fuck do I get the biplot to show Taxon Classification instead of feature ID for the bacteria
+		qiime emperor biplot \
+			--i-biplot "${qzaoutput2}deicode_outputs/ordination.qza" \
+			--m-sample-metadata-file $metadata_filepath \
+			--m-feature-metadata-file "${qzaoutput2}taxonomy.qza" \
+			--o-visualization "${qzaoutput2}deicode_outputs/biplot.qzv" \
+			--p-number-of-features $num_of_features
+		
+		echo "Finished creating biplot..."
+		echo "Creating beta-group-significance..."
+		if [[ "$log" = true ]]; then
+			echo "Finished creating biplot..." >&3
+			echo "Creating beta-group-significance..." >&3
+		fi
+		
+		#Make a PERMANOVA comparison to see if $group explains the clustering in biplot.qzv
+		mkdir "${qzaoutput2}deicode_outputs/PERMANOVAs" 2>/dev/null
+		for group in "${beta_rerun_group[@]}"
+		do
+			echo "Starting beta group: $group"
+			if [[ "$log" = true ]]; then
+				echo "Starting beta group: $group" >&3
+			fi
+			
+			if [ "$verbose" = true ]; then
+				echo "group = $group"
+				echo "qzaoutput2 = $qzaoutput2"
+			fi
+			
+			qiime diversity beta-group-significance \
+				--i-distance-matrix "${qzaoutput2}deicode_outputs/distance.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $group \
+				--p-method permanova \
+				--o-visualization "${qzaoutput2}deicode_outputs/PERMANOVAs/${group}-permanova.qzv"
+			
+			echo "Finished beta group: $group"
+			if [[ "$log" = true ]]; then
+				echo "Finished beta group: $group" >&3
+			fi
+		done
+		
+		echo "Finished DEICODE for $repqza"
+		if [[ "$log" = true ]]; then
+			echo "Finished DEICODE for $repqza" >&3
+		fi 
+		
+	done
+else
+	echo "Either run_deicode is set to false, or taxonomic analyses"
+	echo "have not been completed on the dataset. Deicode analysis"
+	echo "will not proceed."
+	echo ""
+fi
+
+
+#<<<<<<<<<<<<<<<<<<<<END DEICODE<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
 #>>>>>>>>>>>>>>>>>>>>START PICRUST2>>>>>>>>>>>>>>>>>>>>>>>
 
 #TODO: Check if picrust2 component is installed for current version. If not, exit
@@ -1528,10 +1685,68 @@ if [ "$run_picrust" = true ] && [ "$sklearn_done" = true ]; then
 	
 		#Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
-			
-		mkdir "${qzaoutput2}biplot_outputs" 2> /dev/null
 		
-		echo "Creating rarefied table..."
+		echo "Starting the picrust pipeline for: ${qzaoutput2}"
+		if [[ "$log" = true ]]; then
+			echo "Starting the picrust pipeline for: ${qzaoutput2}" >&3
+		fi
+		
+		qiime picrust2 full-pipeline \
+			--i-table "${qzaoutput2}table.qza" \
+			--i-seq "${qzaoutput2}rep-seqs.qza" \
+			--output-dir "${qzaoutput2}q2-picrust2_output" \
+			--p-hsp-method $hsp_method \
+			--p-max-nsti $max_nsti \
+			--verbose
+		
+		echo "Finished an execution of the picrust pipeline"
+		echo "Starting feature table summarization of pathway_abundance.qza"
+		if [[ "$log" = true ]]; then
+			echo "Finished an execution of the picrust pipeline" >&3
+			echo "Starting feature table summarization of pathway_abundance.qza" >&3
+		fi
+		
+		qiime feature-table summarize \
+			--i-table "${qzaoutput2}q2-picrust2_output/pathway_abundance.qza" \
+			--o-visualization "${qzaoutput2}q2-picrust2_output/pathway_abundance.qzv"
+		
+		qiime feature-table summarize \
+			--i-table "${qzaoutput2}q2-picrust2_output/ko_metagenome.qza" \
+			--o-visualization "${qzaoutput2}q2-picrust2_output/ko_metagenome.qzv"
+		
+		qiime feature-table summarize \
+			--i-table "${qzaoutput2}q2-picrust2_output/ec_metagenome.qza" \
+			--o-visualization "${qzaoutput2}q2-picrust2_output/ec_metagenome.qzv"
+		
+		echo "Finished feature table summarization"
+		echo "Starting generation of core-metrics using the outputted pathway_abundance.qza"
+		if [[ "$log" = true ]]; then
+			echo "Finished feature table summarization" >&3
+			echo "Starting generation of core-metrics using the outputted pathway_abundance.qza" >&3
+		fi
+		
+		qiime diversity core-metrics \
+		   --i-table "${qzaoutput2}q2-picrust2_output/pathway_abundance.qza" \
+		   --p-sampling-depth $sampling_depth \
+		   --m-metadata-file $metadata_filepath \
+		   --output-dir "${qzaoutput2}q2-picrust2_output/pathabun_core_metrics"
+		
+		echo "Finished core-metrics generation"
+		if [[ "$log" = true ]]; then
+			echo "Finished core-metrics generation" >&3
+		fi
+		
+	done
+	
+	echo "Finished the picrust pipeline block"
+	if [[ "$log" = true ]]; then
+		echo "Finished the picrust pipeline block" >&3
+	fi
+else
+	echo "Either run_picrust is set to false, or taxonomic analyses"
+	echo "have not been completed on the dataset. Picrust2 production"
+	echo "will not proceed."
+	echo ""
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END PICRUST2<<<<<<<<<<<<<<<<<<<<
@@ -1623,6 +1838,15 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 	echo ""
 	if [[ "$log" = true ]]; then
 		echo "Finished Gneiss gradient-clustering analysis block" >&3
+	else
+		echo "Either run_gneiss is set to false, or taxonomic analyses"
+		echo "have not been completed on the dataset. Gneiss analysis"
+		echo "will not proceed."
+		if [[ "$log" = true ]]; then
+			echo "Either run_gneiss is set to false, or taxonomic analyses" >&3
+			echo "have not been completed on the dataset. Gneiss analysis" >&3
+			echo "will not proceed." >&3
+		fi
 	fi
 fi
 
