@@ -13,8 +13,25 @@
 export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
+#Check that a Qiime2 environment is active
+if ! type "qiime" > /dev/null 2>&1; then
+	echo ""
+	echo "A Qiime2 environment isnt activated yet."
+	echo "Please activate an environment first and make Qiime2 commands"
+	echo "available to use. If installed using conda, use the command"
+	echo "conda info --envs to find all installed environments, then"
+	echo "activate one using conda activate ______ (env name in the underlined part)"
+	echo ""
+	exit 1
+fi
+
 #Version number here
-version="1.5"
+version="1.5b"
+
+#Finding Qiime2 version number
+q2versionnum=$(qiime --version)
+q2versionnum=${q2versionnum:14:9} 
+q2versionnum=${q2versionnum%.*} #if echo'd, it's something like "2019.10" or "2020.2"
 
 #Setting very basic arguments (srcpath is located here)
 exitnow=false
@@ -120,6 +137,7 @@ do
 	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
 		echo "Currently running waterway $version"
+		echo "Currently running Qiime2 $q2versionnum"
 		exit 0
 	fi
 done
@@ -280,7 +298,7 @@ source $analysis_path 2> /dev/null
 str=$filepath
 i=$((${#str}-1)) 2> /dev/null
 j=${str:$i:1} 2> /dev/null
-if [ $j == '/' ]; then
+if [[ $j == '/' ]]; then
 	str=${str%?}
 fi
 filepath=${str}
@@ -548,6 +566,7 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 	echo "projpath = $projpath"
 	echo "filepath = $filepath"
 	echo "qzaoutput = $qzaoutput"
+	echo "metadata = $metadata_filepath"
 	echo ""
 	echo "manifest_status is $manifest_status"
 	if [[ "$manifest_status" = true ]]; then
@@ -633,6 +652,9 @@ if [ "$rerun_phylo_and_alpha" = true ]; then
 		
 		if [[ "$verbose" = true ]]; then
 			echo "Finished alpha rarefaction and group significance"
+		fi
+		if [[ "$log" = true ]]; then
+			echo "Finished alpha rarefaction and group significance" >&3
 		fi
 	done
 	exit 0
@@ -1061,7 +1083,7 @@ if [ "$dada2_done" = false ]; then
 	fi
 	if [ ${#truncR[@]} -eq 0 ]; then
 		echo "Backwards read truncation not set, exiting..."
-		exit 2
+		exit 1
 	fi
 	
 	for e in ${truncF[@]}
@@ -1150,6 +1172,11 @@ if [ "$tree_done" = false ]; then
 		#Defining qzaoutput2
 		qzaoutput2=${fl%"table.qza"}
 		
+		echo "Starting align to tree..."
+		if [[ "$log" = true ]]; then
+			echo "Starting align to tree..." >&3
+		fi
+		
 		#First we generate the trees for use in later diversity measurements
 		qiime phylogeny align-to-tree-mafft-fasttree \
 			--i-sequences "${qzaoutput2}rep-seqs.qza" \
@@ -1186,6 +1213,9 @@ if [ "$divanalysis_done" = false ]; then
 		qzaoutput2=${fl%"table.qza"}
 		
 		echo "Starting core-metrics output"
+		if [[ "$log" = true ]]; then
+			echo "Starting core-metrics output" >&3
+		fi
 		
 		#Passing the rooted-tree.qza generated through core-metrics-phylogenetic
 		qiime diversity core-metrics-phylogenetic \
@@ -1201,6 +1231,9 @@ if [ "$divanalysis_done" = false ]; then
 		fi
 
 		if [[ "$verbose" = true ]]; then
+			echo "Starting alpha-group-significance and alpha-rarefaction"
+		fi
+		if [[ "$log" = true ]]; then
 			echo "Starting alpha-group-significance and alpha-rarefaction"
 		fi
 
@@ -1219,8 +1252,14 @@ if [ "$divanalysis_done" = false ]; then
 		if [[ "$verbose" = true ]]; then
 			echo "Finished alpha-group-significance and alpha-rarefaction"
 		fi
+		if [[ "$log" = true ]]; then
+			echo "Finished alpha-group-significance and alpha-rarefaction"
+		fi
 		
 		echo "Starting beta diversity analysis"
+		if [[ "$log" = true ]]; then
+			echo "Starting beta diversity analysis" >&3
+		fi
 		
 		qiime diversity beta-group-significance \
 			--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
@@ -1236,8 +1275,12 @@ if [ "$divanalysis_done" = false ]; then
 			--o-visualization "${qzaoutput2}core-metrics-results/weighted-unifrac-beta-significance.qzv" \
 			--p-pairwise
 		
+		echo "Finished beta diversity analysis"
 		if [[ "$verbose" = true ]]; then
 			echo "Finished beta diversity analysis"
+		fi
+		if [[ "$log" = true ]]; then
+			echo "Finished beta diversity analysis" >&3
 		fi
 
 		echo "Finished diversity analysis for ${qzaoutput2}"
@@ -1315,6 +1358,8 @@ if [ "$sklearn_done" = false ]; then
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END SK_LEARN<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>START PICRUST2>>>>>>>>>>>>>>>>>>>>>>>
 
 
 #####################################################################################################
