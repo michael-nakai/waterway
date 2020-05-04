@@ -17,3 +17,4 @@ Exit Codes:
 21 -- When making a classifier file, download_greengenes_files_for_me is set to false or the greengenes directory path doesnt exist.
 22 -- When making a classifier file, gg_13_5.fastq.gz is missing, and download_greengenes_files_for_me is set to false.
 23 -- When making a classifier file, gg_13_5_taxonomy.txt.gz is missing, and download_greengenes_files_for_me is set to false.
+24 -- A classifier file already exists that's named classifier.qza, and therefore the classifier training block can't continue.

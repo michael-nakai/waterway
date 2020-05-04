@@ -8,25 +8,33 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --qos=normal
 
-#Created by Michael Nakai, 22/01/2019 for command line Bash or SLURM on M3
+#Created by Michael Nakai, 22/01/2019 for command line Bash or use with the SLURM job management software
 
 export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
+#Setting color variables for echos (need -e, remember to NC after a color)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+BMAGENTA='\033[1;35m'
+NC='\033[0m'
+
 #Check that a Qiime2 environment is active
 if ! type "qiime" > /dev/null 2>&1; then
-	echo "" >&2
-	echo "A Qiime2 environment isnt activated yet." >&2
-	echo "Please activate an environment first and make Qiime2 commands" >&2
-	echo "available to use. If installed using conda, use the command" >&2
-	echo "conda info --envs to find all installed environments, then" >&2
-	echo "activate one using conda activate ______ (env name in the underlined part)" >&2
-	echo "" >&2
+	echo -e "" >&2
+	echo -e "A Qiime2 environment isnt activated yet." >&2
+	echo -e "Please activate an environment first and make Qiime2 commands" >&2
+	echo -e "available to use. If installed using conda, use the command" >&2
+	echo -e "${CYAN}conda info --envs${NC} to find all installed environments, then" >&2
+	echo -e "activate one using ${CYAN}conda activate ______${NC} (env name in the underlined part)" >&2
+	echo -e "" >&2
 	exit 1
 fi
 
 #Version number here
-version="2.0"
+version="2.1"
 
 #Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -78,6 +86,16 @@ function return_unused_filename {
 	fi
 }
 
+#A group of sed commands to strip the color codes from the log file. First argument should be log filename with extension
+function replace_colorcodes_log {
+	sed -i -r 's+\[0;31m++g' $1
+	sed -i -r 's+\[0;32m++g' $1
+	sed -i -r 's+\[0;36m++g' $1
+	sed -i -r 's+\[1;33m++g' $1
+	sed -i -r 's+\[1;35m++g' $1
+	sed -i -r 's+\[0m++g' $1
+}
+
 #---------------------------------------------------------------------------------------------------
 #-----------------------------------------Main Function Start---------------------------------------
 #---------------------------------------------------------------------------------------------------
@@ -93,6 +111,8 @@ show_functions=false
 train_classifier=false
 do_fastqc=false
 rename_files=false
+install_deicode=false
+install_picrust=false
 single_end_reads=false #Currently does nothing
 graphs=false #Currently does nothing
 
@@ -135,6 +155,12 @@ do
 	if [ "$op" == "-r" ] || [ "$op" == "--remove-underscores" ] ; then
 		rename_files=true
 	fi
+	if [ "$op" == "--install-deicode" ] ; then
+		install_deicode=true
+	fi
+	if [ "$op" == "--install-picrust" ] ; then
+		install_picrust=true
+	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
 		echo "Currently running waterway $version"
 		echo "Currently running Qiime2 $q2versionnum"
@@ -149,12 +175,12 @@ if [[ "$hlp" = true ]] ; then
 	echo "-------------------"
 	echo "This script runs the Qiime2 pipeline (without extensive analysis)"
 	echo "and outputs core-metrics-phylogenetic and taxa-bar-plots. It"
-	echo "pulls variables from a config file specified in Master.txt."
+	echo "pulls variables from config.txt"
 	echo ""
 	echo "USAGE"
 	echo "-------------------"
-	echo "waterway.bash [path_to_dir_containing_config_here] {options}"
-	echo "Note: the path_to_dir is mandatory when running options"
+	echo "./waterway.bash [path_to_dir_containing_config_here] {options}"
+	echo "Note: the path_to_dir is mandatory when using options"
 	echo ""
 	echo "OPTIONS"
 	echo "-------------------"
@@ -173,37 +199,50 @@ fi
 
 #If show_functions was set, show the sequence of functions as below:
 if [[ "$show_functions" = true ]] ; then
-	echo ""
-	echo "Functions used in this script:"
-	echo ""
-	echo "---Import Block---"
-	echo "1a. qiime tools import (Paired end, Cassava 1.8)"
-	echo "1b. qiime tools import (Paired end, from manifest with Phred33V2, only if -m is used)"
-	echo ""
-	echo "---Import Visualization Block---"
-	echo "2. qiime demux summarize (outputs imported_seqs.qzv)"
-	echo ""
-	echo "---Dada2 Block---"
-	echo "3. qiime dada2 denoise-paired (outputs table.qza, rep-seqs.qza, denoising-stats.qza)"
-	echo "4. qiime feature-table summarize (outputs table.qzv)"
-	echo "5. qiime feature-table tabulate-seqs (outputs rep-seqs.qzv)"
-	echo "6. qiime metadata tabulate (outputs denoising-stats.qzv)"
-	echo ""
-	echo "---Tree Generation Block---"
-	echo "7. qiime phylogeny align-to-tree-mafft-fasttree (outputs a masked rep-seqs and 2 tree qza files)"
-	echo ""
-	echo "---Phylogeny Generation Block---"
-	echo "8. qiime diversity core-metrics-phylogenetic (outputs core-metrics-results folder)"
-	echo "9. qiime diversity alpha-rarefaction (outputs alpha-rarefaction.qzv)"
-	echo ""
-	echo "---Taxonomic Assignment Block---"
-	echo "10. qiime feature-classifier classify-sklearn (outputs taxonomy.qza)"
-	echo "11. qiime metadata tabulate (outputs taxonomy.qzv)"
-	echo "12. qiime taxa barplot (outputs taxa-bar-plots.qzv)"
-	echo ""
-	echo "For more detail, visit: http://marqueslab.erc.monash.edu/home/michael/waterway_docs/QYyBgctVnjnFvSFij7qJrMul6/index.html"
-	echo ""
+	echo -e ""
+	echo -e "Functions used in this script:"
+	echo -e ""
+	echo -e "---Import Block---"
+	echo -e "1a. qiime tools import (Paired end, Cassava 1.8)"
+	echo -e "1b. qiime tools import (Paired end, from manifest with Phred33V2, only if -m is used)"
+	echo -e "Both output ${BMAGENTA}imported-seqs.qza${NC}"
+	echo -e ""
+	echo -e "---Import Visualization Block---"
+	echo -e "2. qiime demux summarize (outputs ${BMAGENTA}imported_seqs.qzv${NC})"
+	echo -e ""
+	echo -e "---Dada2 Block---"
+	echo -e "3. qiime dada2 denoise-paired (outputs ${BMAGENTA}table.qza${NC}, ${BMAGENTA}rep-seqs.qza${NC}, ${BMAGENTA}denoising-stats.qza${NC})"
+	echo -e "4. qiime feature-table summarize (outputs ${BMAGENTA}table.qzv)${NC}"
+	echo -e "5. qiime feature-table tabulate-seqs (outputs ${BMAGENTA}rep-seqs.qzv)${NC}"
+	echo -e "6. qiime metadata tabulate (outputs ${BMAGENTA}denoising-stats.qzv${NC})"
+	echo -e ""
+	echo -e "---Tree Generation Block---"
+	echo -e "7. qiime phylogeny align-to-tree-mafft-fasttree (outputs a masked rep-seqs and 2 tree qza files)"
+	echo -e ""
+	echo -e "---Phylogeny Generation Block---"
+	echo -e "8. qiime diversity core-metrics-phylogenetic (outputs ${BMAGENTA}core-metrics-results${NC} folder)"
+	echo -e "9. qiime diversity alpha-rarefaction (outputs ${BMAGENTA}alpha-rarefaction.qzv${NC})"
+	echo -e ""
+	echo -e "---Taxonomic Assignment Block---"
+	echo -e "10. qiime feature-classifier classify-sklearn (outputs ${BMAGENTA}taxonomy.qza${NC})"
+	echo -e "11. qiime metadata tabulate (outputs ${BMAGENTA}taxonomy.qzv${NC})"
+	echo -e "12. qiime taxa barplot (outputs ${BMAGENTA}taxa-bar-plots.qzv${NC})"
+	echo -e ""
+	echo -e "For more detail, visit: http://marqueslab.erc.monash.edu/home/michael/waterway_docs/QYyBgctVnjnFvSFij7qJrMul6/index.html"
+	echo -e ""
+	
 	exit 0
+fi
+
+#Install picrust and deicode here if the install options were added
+if [[ "$install-deicode" = true ]] ; then
+	exitnow=true
+	conda install -c conda-forge deicode
+fi
+
+if [[ "$install-picrust" = true ]] ; then
+	exitnow=true
+	conda install q2-picrust2 -c conda-forge -c bioconda -c gavinmdouglas
 fi
 
 if [[ "$do_fastqc" = true ]] ; then
@@ -216,10 +255,9 @@ fi
 #See if configs exist
 if [ ! -f $srcpath ]; then
 	exitnow=true
-	echo ""
-	echo "A config file does not exist. Instead, a template config file will"
-	echo "be created where the script is located. Take note and preserve the" 
-	echo "last slashes (/) ONLY IF they are present in the example."
+	echo -e ""
+	echo -e "A config file does not exist. Instead, a template config file "
+	echo -e "(${BMAGENTA}config.txt${NC}) will be created where the script is located."
 	
 	touch config.txt
 	echo -e "#Filepaths here" >> config.txt
@@ -258,10 +296,10 @@ fi
 
 if [ ! -f $analysis_path ]; then
 	exitnow=true
-	echo ""
-	echo "An optional_analyses file was not found, and will be created now. Please do not"
-	echo "touch this file if this is the first time analysing your data set."
-	echo ""
+	echo -e ""
+	echo -e "An ${BMAGENTA}optional_analyses.txt${NC} file was not found, and will be created now. Please do not"
+	echo -e "touch this file if this is the first time analysing your data set."
+	echo -e ""
 	
 	touch optional_analyses.txt
 	
@@ -345,6 +383,26 @@ for e in ${temparray[@]}; do
 done
 
 
+#>>>>>>>>>>>>>>>>>>>>START LOG BLOCK>>>>>>>>>>>>>>>>>>>>
+# Everything below these two codeblocks will go to a logfile
+name="waterway_log"
+if [[ -e $name.out ]] ; then
+    i=0
+    while [[ -e $name-$i.out ]] ; do
+        let i++
+    done
+    name=$name-$i
+fi
+
+if [[ "$log" = true ]]; then
+	touch "$name".out
+	exec 3>&1 4>&2
+	trap 'exec 2>&4 1>&3' 0 1 2 3
+	exec 1>>"${name}.out" 2>&1
+fi
+
+#<<<<<<<<<<<<<<<<<<<<END LOG BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 #>>>>>>>>>>>>>>>>>>>>START MANIFEST BLOCK>>>>>>>>>>>>>>>>>>>>
 #if -M was set, source config.txt and make a manifest file
 if [[ "$make_manifest" = true ]] ; then
@@ -391,47 +449,35 @@ with open("{0}/manifest.tsv".format(scriptdir), "w") as file:
 		
 print("Ran without errors")
 END
+	if [[ "$log" = true ]]; then
+		replace_colorcodes_log ${name}.out
+	fi
 	exit 0
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END MANIFEST BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-#>>>>>>>>>>>>>>>>>>>>START LOG BLOCK>>>>>>>>>>>>>>>>>>>>
-# Everything below these two codeblocks will go to a logfile
-name="waterway_log"
-if [[ -e $name.out ]] ; then
-    i=0
-    while [[ -e $name-$i.out ]] ; do
-        let i++
-    done
-    name=$name-$i
-fi
-
-if [[ "$log" = true ]]; then
-	touch "$name".out
-	exec 3>&1 4>&2
-	trap 'exec 2>&4 1>&3' 0 1 2 3
-	exec 1>>"${name}.out" 2>&1
-fi
-
-#<<<<<<<<<<<<<<<<<<<<END LOG BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #>>>>>>>>>>>>>>>>>>>>START RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
 if [[ "$rename_files" = true ]] ; then
 
 	#Check if patterns_to_rename.txt exists. If not, make it and exit.
 	if [ ! -f $rename_path ]; then
-		echo ""
-		echo "A patterns_to_rename.txt file will be made. Please include any"
-		echo "patterns with underscores included to search for. Any files that"
-		echo "include these patterns will have the included underscore changed to"
-		echo "a hyphen."
-		echo ""
+		echo -e ""
+		echo -e "A ${BMAGENTA}patterns_to_rename.txt${NC} file will be made. Please include any"
+		echo -e "patterns with underscores included to search for. Any files that"
+		echo -e "include these patterns will have the included underscore changed to"
+		echo -e "a hyphen."
+		echo -e ""
 	
 		touch patterns_to_rename.txt
 		
 		echo "pattern1_to_hyphenate_" >> patterns_to_rename.txt
 		echo "pattern2_to_hyphanate_" >> patterns_to_rename.txt
+		
+		if [[ "$log" = true ]]; then
+			replace_colorcodes_log ${name}.out
+		fi
 		
 		exit 0
 	fi
@@ -441,11 +487,11 @@ if [[ "$rename_files" = true ]] ; then
 	dirWithFiles="${filepath}/"
 	
 	cd $dirWithFiles
-	echo "finished cd-ing into raw-files folder"
+	echo -e "Finished ${CYAN}cd${NC}-ing into raw-files folder"
 
 	for form in ${gform[@]};
 	do
-		echo "Starting $form"
+		echo -e "Starting $form"
 		formfiles=$(find . -maxdepth 1 -name "*${form}*")
 		new=${form//_/-}
 		
@@ -454,15 +500,18 @@ if [[ "$rename_files" = true ]] ; then
 		# Then we can rename the file by finding the $form and replacing with the $new via rename
 		for fl in ${formfiles[@]}; 
 		do
-			echo "renaming $fl"
+			echo -e "${CYAN}Renaming${NC} ${BMAGENTA}${fl}"
 			rename "s/${form}*/${new}/" $fl
 		done
 		echo ""
 	done
 
-	echo "Going back to $origfold"
+	echo -e "Going back to ${BMAGENTA}$origfold${NC}"
 	cd $origfold
-	echo "Renaming done."
+	echo -e "${GREEN}Renaming done${NC}"
+	if [[ "$log" = true ]]; then
+		replace_colorcodes_log ${name}.out
+	fi
 	exit 0
 fi
 #>>>>>>>>>>>>>>>>>>>>END RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
@@ -481,13 +530,13 @@ echo ""
 #Testing to see if import is done
 if test -f "${qzaoutput}imported_seqs.qza"; then
 	import_done=true
-	echo "Previously completed: Import step"
+	echo -e "${GREEN}Previously completed: Import step${NC}"
 fi
 
 #Testing to see if the import visualization is done
 if test -f "${qzaoutput}imported_seqs.qzv"; then
 	importvis_done=true
-	echo "Previously completed: Import visualization step"
+	echo -e "${GREEN}Previously completed: Import visualization step${NC}"
 fi
 
 #Testing to see if the Dada2 step has outputed a table or NoOutput.txt per combination
@@ -507,7 +556,7 @@ if [ "$importvis_done" = true ]; then
 
 	if [ $i -eq $filecount ]; then
 		dada2_done=true
-		echo "Previously completed: Dada2"
+		echo -e "${GREEN}Previously completed: Dada2${NC}"
 	fi
 fi
 
@@ -528,7 +577,7 @@ if [ "$dada2_done" = true ]; then
 
 	if [ $i -eq $filecount ]; then
 		tree_done=true
-		echo "Previously completed: Rooted tree"
+		echo -e "${GREEN}Previously completed: Rooted tree${NC}"
 	fi
 fi
 
@@ -549,7 +598,7 @@ if [ "$tree_done" = true ]; then
 
 	if [ $i -eq $filecount ]; then
 		divanalysis_done=true
-		echo "Previously completed: Alpha rarefaction"
+		echo -e "${GREEN}Previously completed: Alpha rarefaction${NC}"
 	fi
 fi
 
@@ -571,7 +620,7 @@ if [ "$divanalysis_done" = true ]; then
 
 	if [ $i -eq $filecount ]; then
 		sklearn_done=true
-		echo "Previously completed: Sklearn step"
+		echo -e "${GREEN}Previously completed: Sklearn step${NC}"
 	fi
 fi
 
@@ -584,25 +633,25 @@ echo ""
 
 #Find if tst or verbose is true, and run the codeblock if true
 if [ "$tst" = true ] || [ "$verbose" = true ]; then
-	echo "projpath = $projpath"
-	echo "filepath = $filepath"
-	echo "qzaoutput = $qzaoutput"
-	echo "metadata = $metadata_filepath"
-	echo ""
-	echo "manifest_status is $manifest_status"
+	echo -e "projpath = ${BMAGENTA}${projpath}${NC}"
+	echo -e "filepath = ${BMAGENTA}${filepath}${NC}"
+	echo -e "qzaoutput = ${BMAGENTA}${qzaoutput}${NC}"
+	echo -e "metadata = ${BMAGENTA}${metadata_filepath}${NC}"
+	echo -e ""
+	echo -e "manifest_status is $manifest_status"
 	if [[ "$manifest_status" = true ]]; then
-		echo "manifest is $manifest"
+		echo -e "manifest is ${BMAGENTA}${manifest}${NC}"
 	fi
-	echo "train_classifier is $train_classifier"
-	echo "download greengenes is $download_greengenes_files_for_me"
-	echo ""
-	echo "import_done is $import_done"
-	echo "importvis_done is $importvis_done"
-	echo "dada2_done is $dada2_done"
-	echo "tree_done is $tree_done"
-	echo "divanalysis_done is $divanalysis_done"
-	echo "sklearn_done is $sklearn_done"
-	echo ""
+	echo -e "train_classifier is $train_classifier"
+	echo -e "download greengenes is $download_greengenes_files_for_me"
+	echo -e ""
+	echo -e "import_done is $import_done"
+	echo -e "importvis_done is $importvis_done"
+	echo -e "dada2_done is $dada2_done"
+	echo -e "tree_done is $tree_done"
+	echo -e "divanalysis_done is $divanalysis_done"
+	echo -e "sklearn_done is $sklearn_done"
+	echo -e ""
 	
 	if [[ "$log" = true ]]; then
 		echo "manifest_status is $manifest_status" >&3
@@ -623,6 +672,9 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 	
 	#If -t was set, exit here
 	if [[ "$tst" = true ]]; then
+		if [[ "$log" = true ]]; then
+			replace_colorcodes_log ${name}.out
+		fi
 		exit 0
 	fi
 fi
@@ -650,13 +702,13 @@ if [ "$rerun_phylo_and_alpha" = true ]; then
 			--m-metadata-file $metadata_filepath \
 			--output-dir "${qzaoutput2}rerun_alpha/core-metrics-results"
 			
-		echo "Finished core-metrics-phylogenetic for ${qzaoutput2}"
+		echo -e "${GREEN}Finished core-metrics-phylogenetic for ${qzaoutput2}${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished core-metrics-phylogenetic for ${qzaoutput2}" >&3
+			echo -e "${GREEN}Finished core-metrics-phylogenetic for ${qzaoutput2}${NC}" >&3
 		fi
 
 		if [[ "$verbose" = true ]]; then
-			echo "Starting alpha-group-significance and alpha-rarefaction"
+			echo -e "Starting ${CYAN}alpha-group-significance${NC} and ${CYAN}alpha-rarefaction${NC}"
 		fi
 
 		qiime diversity alpha-group-significance \
@@ -672,13 +724,12 @@ if [ "$rerun_phylo_and_alpha" = true ]; then
 			--o-visualization "${qzaoutput2}rerun_alpha/alpha-rarefaction.qzv"
 		
 		if [[ "$verbose" = true ]]; then
-			echo "Finished alpha rarefaction and group significance"
+			echo -e "${GREEN}Finished alpha rarefaction and group significance${NC}"
 		fi
 		if [[ "$log" = true ]]; then
-			echo "Finished alpha rarefaction and group significance" >&3
+			echo -e "${GREEN}Finished alpha rarefaction and group significance${NC}" >&3
 		fi
 	done
-	exit 0
 fi
 
 if [ "$rerun_beta_analysis" = true ]; then
@@ -700,7 +751,7 @@ if [ "$rerun_beta_analysis" = true ]; then
 			echo $(return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1)
 			mkdir "${qzaoutput2}beta_div_reruns/rerun_${group}"
 			
-			echo "Starting beta diversity analysis for ${group}"
+			echo -e "Starting ${CYAN}beta-group-significance${NC} for ${group}"
 			
 			#For unweighted
 			qiime diversity beta-group-significance \
@@ -718,10 +769,9 @@ if [ "$rerun_beta_analysis" = true ]; then
 				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/weighted-unifrac-beta-significance.qzv" \
 				--p-pairwise
 			
-			echo "Finished beta diversity analysis for $group"
+			echo -e "${GREEN}Finished beta diversity analysis for $group${NC}"
 		done
 	done
-	exit 0
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END RERUN BLOCK<<<<<<<<<<<<<<<<<<<<
@@ -729,8 +779,7 @@ fi
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>TRAINING CLASSIFIER BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 
-if [ "$train_classifier" = true ]; then
-
+if [[ "$train_classifier" == true ]]; then
 	echo ""
 	echo "Starting classifier training on greengenes database..."
 	if [[ "$log" = true ]]; then
@@ -739,54 +788,60 @@ if [ "$train_classifier" = true ]; then
 	
 	#Check to see whether variables have been inputted or changed from defaults
 	if [ "${forward_primer}" = "GGGGGGGGGGGGGGGGGG" ] || [ "${reverse_primer}" = "AAAAAAAAAAAAAAAAAA" ]; then 
-		echo "Forward or reverse primer not set, exiting..."
+		echo -e "${RED}Forward or reverse primer not set, exiting...${NC}"
+		if [[ "$log" = true ]]; then
+			replace_colorcodes_log ${name}.out
+		fi
 		exit 2
 	fi
 	
 	if [ ${min_read_length} -eq "100" ] || [ ${max_read_length} -eq "400" ]; then
 		echo ""
-		echo "WARNING: min_read_length OR max_read_length HAS BEEN LEFT AT DEFAULT"
+		echo -e "${YELLOW}WARNING: min_read_length OR max_read_length HAS BEEN LEFT AT DEFAULT${NC}"
 		if [[ "$log" = true ]]; then
 			echo ""
-			echo "WARNING: min_read_length OR max_read_length HAS BEEN LEFT AT DEFAULT" >&3
+			echo -e "${YELLOW}WARNING: min_read_length OR max_read_length HAS BEEN LEFT AT DEFAULT${NC}" >&3
 		fi
 	fi
 
 	#Check to see if the greengenes files are downloaded at greengenes_path
 	if [ "$download_greengenes_files_for_me" = false ] && [ ! -d "${greengenes_path%?}" ]; then
-		echo "greengenes_path does not refer to a directory and download_greengenes_files_for_me is false"
-		echo "Please either fix the greengenes_path in the config file, or set"
-		echo "download_greengenes_files_for_me to true"
+		echo -e "${RED}greengenes_path does not refer to a directory and download_greengenes_files_for_me is false${NC}"
+		echo -e "${RED}Please either fix the greengenes_path in the config file, or set${NC}"
+		echo -e "${RED}download_greengenes_files_for_me to true${NC}"
 		if [[ "$log" = true ]]; then
-			echo "greengenes_path does not refer to a directory and download_greengenes_files_for_me is false" >&3
-			echo "Please either fix the greengenes_path in the config file, or set" >&3
-			echo "download_greengenes_files_for_me to true" >&3
+			echo -e "${RED}greengenes_path does not refer to a directory and download_greengenes_files_for_me is false${NC}" >&3
+			echo -e "${RED}Please either fix the greengenes_path in the config file, or set${NC}" >&3
+			echo -e "${RED}download_greengenes_files_for_me to true${NC}" >&3
+			replace_colorcodes_log ${name}.out
 		fi
 		exit 20
 	fi
 	
 	if [ "$download_greengenes_files_for_me" = false ] && [ ! -f "${greengenes_path}gg_13_5.fasta.gz" ]; then
-		echo "You are missing gg_13_5.fasta.gz"
-		echo "Please download these first, set download_greengenes_files_for_me to true in the config,"
-		echo "or rename your files to these names if already downloaded."
+		echo -e "${RED}You are missing gg_13_5.fasta.gz${NC}"
+		echo -e "${RED}Please download this first, or set download_greengenes_files_for_me to true in the config,${NC}"
+		echo -e "${RED}or rename your files to these names if already downloaded.${NC}"
 		if [[ "$log" = true ]]; then
-			echo "You are missing gg_13_5.fasta.gz" >&3
-			echo "Please download these first, set download_greengenes_files_for_me to true in the config," >&3
-			echo "or rename your files to these names if already downloaded." >&3
+			echo -e "${RED}You are missing gg_13_5.fasta.gz${NC}" >&3
+			echo -e "${RED}Please download this first, or set download_greengenes_files_for_me to true in the config,${NC}" >&3
+			echo -e "${RED}or rename your files to these names if already downloaded.${NC}" >&3
+			replace_colorcodes_log ${name}.out
 		fi
 		exit 21
 	fi
 	
 	if [ "$download_greengenes_files_for_me" = false ] && [ ! -f "${greengenes_path}gg_13_5_taxonomy.txt.gz" ]; then
-		echo "You are missing either gg_13_5_taxonomy.txt.gz"
-		echo "Please download these first, set download_greengenes_files_for_me to true in the config,"
-		echo "or rename your files to these names if already downloaded."
+		echo -e "${RED}You are missing either gg_13_5_taxonomy.txt.gz${NC}"
+		echo -e "${RED}Please download this first, or set download_greengenes_files_for_me to true in the config,${NC}"
+		echo -e "${RED}or rename your files to these names if already downloaded.${NC}"
 		if [[ "$log" = true ]]; then
-			echo "You are missing gg_13_5_taxonomy.txt.gz" >&3
-			echo "Please download these first, set download_greengenes_files_for_me to true in the config," >&3
-			echo "or rename your files to these names if already downloaded." >&3
+			echo -e "${RED}You are missing gg_13_5_taxonomy.txt.gz${NC}" >&3
+			echo -e "${RED}Please download this first, or set download_greengenes_files_for_me to true in the config,${NC}" >&3
+			echo -e "${RED}or rename your files to these names if already downloaded.${NC}" >&3
+			replace_colorcodes_log ${name}.out
 		fi
-		exit 21
+		exit 22
 	fi
 
 	#Figure out what exists and what doesn't. If download_greengenes_files_for_me is true, wget the files if needed.
@@ -818,7 +873,7 @@ if [ "$train_classifier" = true ]; then
 	fi
 	
 	if [ "$verbose" = true ]; then
-		echo "usepath = $usepath"
+		echo -e "usepath = ${BMAGENTA}${usepath}${NC}"
 		echo "ggfastaGZ_exists = $ggfastaGZ_exists"
 		echo "ggfasta_exists = $ggfasta_exists"
 		echo "ggtaxGZ_exists = $ggtaxGZ_exists"
@@ -833,7 +888,7 @@ if [ "$train_classifier" = true ]; then
 				ggfastaGZ_exists=true
 			fi
 			if [ "$ggfastaGZ_exists" = true ] && [ "$ggfasta_exists" = false ]; then
-				echo "decompressing gg_13_5.fastq.gz..."
+				echo "Decompressing gg_13_5.fastq.gz..."
 				gunzip -k "${greengenes_path}/gg_13_5.fasta.gz"
 				ggfasta="${greengenes_path}/gg_13_5.fasta"
 			fi
@@ -846,7 +901,7 @@ if [ "$train_classifier" = true ]; then
 				ggfastaGZ_exists=true
 			fi
 			if [ "$ggfastaGZ_exists" = true ] && [ "$ggfasta_exists" = false ]; then
-				echo "decompressing gg_13_5.fastq.gz..."
+				echo "Decompressing gg_13_5.fastq.gz..."
 				gunzip -k "${scriptdir}/gg_13_5.fasta.gz"
 				ggfasta="${scriptdir}/gg_13_5.fasta"
 			fi
@@ -888,12 +943,16 @@ if [ "$train_classifier" = true ]; then
 	fi
 	
 	if [ "$verbose" = true ]; then
-		echo "ggfasta is $ggfasta"
-		echo "ggtaxonomy is $ggtaxonomy"
+		echo -e "ggfasta is ${BMAGENTA}${ggfasta}${NC}"
+		echo -e "ggtaxonomy is ${BMAGENTA}${ggtaxonomy}${NC}"
 	fi
 	
 	if [ "$ggfasta" == "" ] || [ "$ggtaxonomy" == "" ]; then
-		echo "There was a problem with setting the fasta/taxonomy path. Please report this bug."
+		echo -e "${RED}There was a problem with setting the fasta/taxonomy path. Please report this bug.${NC}"
+		if [[ "$log" = true ]]; then
+			echo -e "${RED}There was a problem with setting the fasta/taxonomy path. Please report this bug.${NC}"
+			replace_colorcodes_log ${name}.out
+		fi
 		exit 150
 	fi
 	
@@ -907,7 +966,8 @@ if [ "$train_classifier" = true ]; then
 	fi
 	
 	if [[ "$verbose" = true ]]; then
-		echo "qzaflag=${qzaflag}, lateflag=${lateflag}"
+		echo -e "qzaflag=${BMAGENTA}${qzaflag}${NC}"
+		echo -e "lateflag=${BMAGENTA}${lateflag}${NC}"
 	fi
 	
 	if [[ "$lateflag" = true && "$qzaflag" = true ]] ; then
@@ -927,6 +987,8 @@ if [ "$train_classifier" = true ]; then
 			--input-path $ggfasta \
 			--output-path "99_otus.qza"
 		
+		echo -e "${GREEN}Finished importing ggfasta${NC}"
+		
 		echo "Importing ggtax..."
 		if [[ "$log" = true ]]; then
 			echo "Importing ggtax..." >&3
@@ -936,6 +998,8 @@ if [ "$train_classifier" = true ]; then
 			--input-format HeaderlessTSVTaxonomyFormat \
 			--input-path $ggtaxonomy \
 			--output-path "ref-taxonomy.qza"
+		
+		echo -e "${GREEN}Finished importing ggtaxonomy${NC}"
 	fi
 	
 	if [ ! -f "extracted-reads.qza" ] && [ ! -f "classifier.qza" ]; then
@@ -952,6 +1016,8 @@ if [ "$train_classifier" = true ]; then
 			--p-min-length $min_read_length \
 			--p-max-length $max_read_length \
 			--o-reads "extracted-reads.qza"
+			
+		echo -e "${GREEN}Finished read extractions{NC}"
 	fi
 	
 	if [ ! -f "classifier.qza" ]; then
@@ -966,14 +1032,21 @@ if [ "$train_classifier" = true ]; then
 			--i-reference-taxonomy "ref-taxonomy.qza" \
 			--o-classifier classifier.qza
 		
-		echo "Finished training the classifier as classifier.qza"
+		echo -e "${GREEN}Finished training the classifier as classifier.qza${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished training the classifier as classifier.qza" >&3
+			echo -e "${GREEN}Finished training the classifier as classifier.qza${NC}" >&3
 		fi
-	else
-		echo "The classifier already exists as classifier.qza"
-		echo "Please rename the current classifier file if you want a new"
-		echo "classifier to be made"
+	fi
+	
+	if [ -f "classifier.qza" ]; then
+		echo -e "${RED}A classifier file already exists as classifier.qza, and has been overwritten.${NC}"
+		echo -e "${RED}Please rename the current classifier file if you want a new classifier to be made.${NC}"
+		if [[ "$log" = true ]]; then
+			echo -e "${RED}A classifier file already exists as classifier.qza, and has been overwritten.${NC}" >&3
+			echo -e "${RED}Please rename the current classifier file if you want a new classifier to be made.${NC}" >&3
+			replace_colorcodes_log ${name}.out
+		fi
+		exit 24
 	fi
 	
 	sed -i '/classifierpath=/c\classifierpath='"${scriptdir}/classifier.qza" "$srcpath"
@@ -982,12 +1055,15 @@ if [ "$train_classifier" = true ]; then
 		sed -i '/classifierpath=/c\classifierpath='"${greengenes_path}classifier.qza" "$srcpath"
 	fi
 	
-	echo "Changed the classifier path in the config file"
+	echo -e "${GREEN}Changed the classifier path in the config file${NC}"
 	if [[ "$log" = true ]]; then
-		echo "Changed the classifier path in the config file" >&3
+		echo -e "${GREEN}Changed the classifier path in the config file${NC}" >&3
 	fi
 	
-	echo "Classifier block has finished"
+	echo -e "${GREEN}Classifier block has finished${NC}"
+	if [[ "$log" = true ]]; then
+		replace_colorcodes_log ${name}.out
+	fi
 	
 	exit 0
 	
@@ -1002,7 +1078,7 @@ fi
 #---------------------------------------------------------------------------------------------------#
 #####################################################################################################
 
-files_created=()
+files_created=() #Does nothing for now
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>IMPORT>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -1017,6 +1093,11 @@ fi
 if [ "$import_done" = false ]; then
 	
 	#If no manifest file, we import via normal filepath
+	echo -e "Starting ${CYAN}qiime tools import${NC}"
+	if [[ "$log" = true ]]; then
+		echo -e "Starting ${CYAN}qiime tools import${NC}" >&3
+	fi
+	
 	if [ "$manifest_status" = false ]; then
 		qiime tools import \
 			--type 'SampleData[PairedEndSequencesWithQuality]' \
@@ -1025,9 +1106,9 @@ if [ "$import_done" = false ]; then
 			--output-path ${qzaoutput}imported_seqs.qza
 			
 		if [[ "$verbose" = true ]]; then
-			echo "Finished importing from $filepath"
+			echo -e "${GREEN}Finished importing from ${filepath}${NC}"
 			if [[ "$log" = true ]]; then
-				echo "Finished importing from $filepath" >&3
+				echo -e "${GREEN}Finished importing from ${filepath}${NC}" >&3
 			fi
 		fi
 	fi
@@ -1041,44 +1122,49 @@ if [ "$import_done" = false ]; then
 			--output-path ${qzaoutput}imported_seqs.qza
 			
 		if [[ "$verbose" = true ]]; then
-			echo "Finished importing from $manifest"
+			echo -e "${GREEN}Finished importing from ${manifest}${NC}"
 			if [[ "$log" = true ]]; then
-				echo "Finished importing from $manifest" >&3
+				echo -e "${GREEN}Finished importing from ${manifest}${NC}" >&3
 			fi
 		fi
 	fi
 fi
 
 if [ "$import_done" = false ]; then
-	echo "Finished importing to qza"
+	echo -e "${GREEN}Finished importing to qza${NC}"
 	if [[ "$log" = true ]]; then
-		echo "Finished importing to qza" >&3
+		echo -e "${GREEN}Finished importing to qza${NC}" >&3
 	fi
 fi
 
 #This will output a sequence quality visualization based on 10,000 randomly selected reads
 if [ "$importvis_done" = false ]; then
+	echo -e "Starting ${CYAN}qiime demux summarize${NC}"
+	if [[ "$log" = true ]]; then
+		echo -e "Starting ${CYAN}qiime demux summarize${NC}" >&3
+	fi
+
 	qiime demux summarize \
 		--i-data ${qzaoutput}imported_seqs.qza \
 		--o-visualization ${qzaoutput}imported_seqs.qzv
 	
 	if [[ "$verbose" = true ]]; then
-		echo "Finished summarization of ${qzaoutput}imported_seqs.qza"
+		echo -e "${GREEN}Finished summarization of ${qzaoutput}imported_seqs.qza${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished summarization of ${qzaoutput}imported_seqs.qza" >&3
+			echo -e "${GREEN}Finished summarization of ${qzaoutput}imported_seqs.qza${NC}" >&3
 		fi
 	fi
 fi
 
 if [ "$importvis_done" = false ]; then
-	echo "Finished summarizing imported data to qzv"
+	echo -e "${GREEN}Finished summarizing imported data to qzv${NC}"
 	if [[ "$log" = true ]]; then
-		echo "Finished summarizing imported data to qzv" >&3
+		echo -e "${GREEN}Finished summarizing imported data to qzv${NC}" >&3
 	fi
 
-	echo "Finished import block"
+	echo -e "${GREEN}Finished import block"
 	if [[ "$log" = true ]]; then
-		echo "Finished import block" >&3
+		echo -e "${GREEN}Finished import block${NC}" >&3
 	fi
 fi
 
@@ -1099,11 +1185,17 @@ if [ "$dada2_done" = false ]; then
 
 	#Break here if Dada2 options haven't been set
 	if [ ${#truncF[@]} -eq 0 ]; then 
-		echo "Forward read truncation not set, exiting..."
+		echo -e "${RED}Forward read truncation not set, exiting...${NC}"
+		if [[ "$log" = true ]]; then
+			replace_colorcodes_log ${name}.out
+		fi
 		exit 10
 	fi
 	if [ ${#truncR[@]} -eq 0 ]; then
-		echo "Backwards read truncation not set, exiting..."
+		echo -e "${RED}Backwards read truncation not set, exiting...${NC}"
+		if [[ "$log" = true ]]; then
+			replace_colorcodes_log ${name}.out
+		fi
 		exit 11
 	fi
 	
@@ -1120,6 +1212,11 @@ if [ "$dada2_done" = false ]; then
 	do
 		for element2 in ${truncR[@]}
 		do
+			echo -e "Starting ${CYAN}qiime dada2 denoise-paired${NC}"
+			if [[ "$log" = true ]]; then
+				echo -e "Starting ${CYAN}qiime dada2 denoise-paired${NC}" >&3
+			fi
+			
 			qiime dada2 denoise-paired \
 				--i-demultiplexed-seqs $demuxpairedendpath \
 				--p-trim-left-f $trimR \
@@ -1130,9 +1227,14 @@ if [ "$dada2_done" = false ]; then
 				--o-representative-sequences "${qzaoutput}${element}-${element2}/rep-seqs.qza" \
 				--o-denoising-stats "${qzaoutput}${element}-${element2}/denoising-stats.qza"
 			
-			echo "Dada2 of ${element}-${element2} done, progressing to summarization"
+			echo -e "${GREEN}Dada2 of ${element}-${element2} done, progressing to summarization${NC}"
 			if [[ "$log" = true ]]; then
-				echo "Dada2 of ${element}-${element2} done, progressing to summarization" >&3
+				echo -e "${GREEN}Dada2 of ${element}-${element2} done, progressing to summarization${NC}" >&3
+			fi
+
+			echo -e "Starting ${CYAN}feature-table summarize, tabulate-seqs, and metadata tabulate${NC}"
+			if [[ "$log" = true ]]; then
+				echo -e "Starting ${CYAN}feature-table summarize, tabulate-seqs, and metadata tabulate${NC}" >&3
 			fi
 
 			qiime feature-table summarize \
@@ -1152,24 +1254,24 @@ if [ "$dada2_done" = false ]; then
 			if [ ! -f "${qzaoutput}${element}-${element2}/rep-seqs.qza" ]; then
 				echo "No output" > "${qzaoutput}${element}-${element2}/NoOutput.txt"
 				
-				echo "No output for ${element}-${element2}"
+				echo -e "${YELLOW}No output for ${element}-${element2}${NC}"
 				if [[ "$log" = true ]]; then
-					echo "No output for ${element}-${element2}" >&3
+					echo -e "${YELLOW}No output for ${element}-${element2}${NC}" >&3
 				fi
 			fi
 			
-			echo "Summarization of ${element}-${element2} done"
+			echo -e "${GREEN}Summarization of ${element}-${element2} done${NC}"
 			if [[ "$log" = true ]]; then
-				echo "Summarization of ${element}-${element2} done" >&3
+				echo -e "${GREEN}Summarization of ${element}-${element2} done${NC}" >&3
 			fi
 		done
 	done
 fi
 
 if [ "$dada2_done" = false ]; then
-	echo "Dada2 block done"
+	echo -e "${GREEN}Dada2 block done${NC}"
 	if [[ "$log" = true ]]; then
-		echo "Dada2 block done" >&3
+		echo -e "${GREEN}Dada2 block done${NC}" >&3
 	fi
 fi
 
@@ -1193,9 +1295,9 @@ if [ "$tree_done" = false ]; then
 		#Defining qzaoutput2
 		qzaoutput2=${fl%"table.qza"}
 		
-		echo "Starting align to tree..."
+		echo -e "Starting ${CYAN}align-to-tree-mafft-fasttree${NC}..."
 		if [[ "$log" = true ]]; then
-			echo "Starting align to tree..." >&3
+			echo -e "Starting ${CYAN}align-to-tree-mafft-fasttree${NC}..." >&3
 		fi
 		
 		#First we generate the trees for use in later diversity measurements
@@ -1209,9 +1311,11 @@ if [ "$tree_done" = false ]; then
 fi
 
 if [ "$tree_done" = false ]; then
-	echo "Finished trees, starting core-metrics-phylogenetic"
+	echo -e "${GREEN}Finished trees${NC}"
+	echo -e "Starting ${CYAN}core-metrics-phylogenetic${NC}"
 	if [[ "$log" = true ]]; then
-		echo "Finished trees, starting core-metrics-phylogenetic" >&3
+		echo -e "${GREEN}Finished trees${NC}" >&3
+		echo -e "${CYAN}Starting core-metrics-phylogenetic${NC}" >&3
 	fi
 fi
 
@@ -1219,7 +1323,10 @@ if [ "$divanalysis_done" = false ]; then
 
 	#Break here if sampling_depth is 0
 	if [ $sampling_depth -eq 0 ] ; then
-		echo "Sampling depth not set"
+		echo -e "${RED}Sampling depth not set${NC}"
+		if [[ "$log" = true ]]; then
+			replace_colorcodes_log ${name}.out
+		fi
 		exit 12
 	fi
 
@@ -1229,9 +1336,9 @@ if [ "$divanalysis_done" = false ]; then
 		#Defining qzaoutput2
 		qzaoutput2=${fl%"table.qza"}
 		
-		echo "Starting core-metrics output"
+		echo -e "${CYAN}Starting core-metrics phylogenetic${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Starting core-metrics output" >&3
+			echo -e "${CYAN}Starting core-metrics phylogenetic${NC}" >&3
 		fi
 		
 		#Passing the rooted-tree.qza generated through core-metrics-phylogenetic
@@ -1242,13 +1349,13 @@ if [ "$divanalysis_done" = false ]; then
 			--m-metadata-file $metadata_filepath \
 			--output-dir "${qzaoutput2}core-metrics-results"
 			
-		echo "Finished core-metrics-phylogenetic for ${qzaoutput2}"
+		echo -e "${RED}Finished core-metrics-phylogenetic for ${qzaoutput2}${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished core-metrics-phylogenetic for ${qzaoutput2}" >&3
+			echo -e "${RED}Finished core-metrics-phylogenetic for ${qzaoutput2}${NC}" >&3
 		fi
 
 		if [[ "$verbose" = true ]]; then
-			echo "Starting alpha-group-significance and alpha-rarefaction"
+			echo -e "Starting ${CYAN}alpha-group-significance${NC} and ${CYAN}alpha-rarefaction${NC}"
 		fi
 		if [[ "$log" = true ]]; then
 			echo "Starting alpha-group-significance and alpha-rarefaction"
@@ -1267,15 +1374,15 @@ if [ "$divanalysis_done" = false ]; then
 			--o-visualization "${qzaoutput2}alpha-rarefaction.qzv"
 		
 		if [[ "$verbose" = true ]]; then
-			echo "Finished alpha-group-significance and alpha-rarefaction"
+			echo -e "${GREEN}Finished alpha-group-significance and alpha-rarefaction${NC}"
 		fi
 		if [[ "$log" = true ]]; then
 			echo "Finished alpha-group-significance and alpha-rarefaction"
 		fi
 		
-		echo "Starting beta diversity analysis"
+		echo -e "Starting ${CYAN}beta-group-significance${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Starting beta diversity analysis" >&3
+			echo -e "Starting ${CYAN}beta-group-significance${NC}" >&3
 		fi
 		
 		qiime diversity beta-group-significance \
@@ -1292,25 +1399,25 @@ if [ "$divanalysis_done" = false ]; then
 			--o-visualization "${qzaoutput2}core-metrics-results/weighted-unifrac-beta-significance.qzv" \
 			--p-pairwise
 		
-		echo "Finished beta diversity analysis"
+		echo -e "${GREEN}Finished beta diversity analysis${NC}"
 		if [[ "$verbose" = true ]]; then
-			echo "Finished beta diversity analysis"
+			echo -e "${GREEN}Finished beta diversity analysis${NC}"
 		fi
 		if [[ "$log" = true ]]; then
-			echo "Finished beta diversity analysis" >&3
+			echo -e "${GREEN}Finished beta diversity analysis${NC}" >&3
 		fi
 
-		echo "Finished diversity analysis for ${qzaoutput2}"
+		echo -e "${GREEN}Finished diversity analysis for ${qzaoutput2}${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished diversity analysis for ${qzaoutput2}" >&3
+			echo -e "${GREEN}Finished diversity analysis for ${qzaoutput2}${NC}" >&3
 		fi
 	done
 fi
 
 if [ "$tree_done" = false ]; then
-	echo "Finished diversity block"
+	echo -e "${GREEN}Finished diversity block${NC}"
 	if [[ "$log" = true ]]; then
-		echo "Finished diversity block" >&3
+		echo -e "${GREEN}Finished diversity block${NC}" >&3
 	fi
 fi
 
@@ -1328,8 +1435,11 @@ fi
 
 #Check whether classifier path refers to an actual file or not
 if [ ! -f $classifierpath ] ; then
-	echo "File does not exist at the classifier path"
-	echo "Please change classifier path in the config file (.txt file)"
+	echo -e "${RED}File does not exist at the classifier path${NC}"
+	echo -e "${RED}Please change classifier path in config.txt${NC}"
+	if [[ "$log" = true ]]; then
+		replace_colorcodes_log ${name}.out
+	fi
 	exit 14
 fi
 
@@ -1338,6 +1448,11 @@ if [ "$sklearn_done" = false ]; then
 	do
 		#Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
+		
+		echo -e "Starting ${CYAN}classify-sklearn${NC} for ${BMAGENTA}$repqza${NC}"
+		if [[ "$log" = true ]]; then
+			echo -e "Starting ${CYAN}classify-sklearn${NC} for ${BMAGENTA}$repqza${NC}" >&3
+		fi
 
 		#Sklearn here
 		qiime feature-classifier classify-sklearn \
@@ -1345,9 +1460,9 @@ if [ "$sklearn_done" = false ]; then
 			--i-reads "${qzaoutput2}rep-seqs.qza" \
 			--o-classification "${qzaoutput2}taxonomy.qza"
 			
-		echo "Finished classify-sklearn for $repqza"
+		echo -e "${GREEN}Finished classify-sklearn ${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished classify-sklearn for $repqza" >&3
+			echo -e "${GREEN}Finished classify-sklearn ${NC}" >&3
 		fi
 
 		#Summarize and visualize
@@ -1361,15 +1476,15 @@ if [ "$sklearn_done" = false ]; then
 			--m-metadata-file $metadata_filepath \
 			--o-visualization "${qzaoutput2}taxa-bar-plots.qzv"
 			
-		echo "Finished metadata_tabulate and taxa_barplot for $repqza"
+		echo -e "${GREEN}Finished metadata_tabulate and taxa_barplot${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished metadata_tabulate and taxa_barplot for $repqza" >&3
+			echo -e "${GREEN}Finished metadata_tabulate and taxa_barplot${NC}" >&3
 		fi
 	done
-	echo "Finished taxonomic analysis block"
+	echo -e "${GREEN}Finished taxonomic analysis block${NC}"
 	echo ""
 	if [[ "$log" = true ]]; then
-		echo "Finished taxonomic analysis block" >&3
+		echo -e "${GREEN}Finished taxonomic analysis block${NC}" >&3
 	fi
 	sklearn_done=true
 fi
@@ -1406,9 +1521,9 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 			
 			if [ "$run_ancom_composition" = true ]; then
 			
-				echo "Starting composition rerun for $group"
+				echo -e "Starting composition rerun for ${BMAGENTA}${group}${NC}"
 				if [[ "$log" = true ]]; then
-					echo "Starting composition rerun for $group" >&3
+					echo -e "Starting composition rerun for ${BMAGENTA}${group}${NC}" >&3
 				fi
 			
 				#Defining qzaoutput2
@@ -1417,9 +1532,9 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 				mkdir "${qzaoutput2}ancom_outputs" 2> /dev/null
 				mkdir "${qzaoutput2}ancom_outputs/${group}" 2> /dev/null
 				
-				echo "Feature table filtering starting for $group"
+				echo -e "${CYAN}feature-table filter-features${NC} starting for ${BMAGENTA}${group}${NC}"
 				if [[ "$log" = true ]]; then
-					echo "Feature table filtering starting for $group" >&3
+					echo -e "${CYAN}feature-table filter-features${NC} starting for ${BMAGENTA}${group}${NC}" >&3
 				fi
 				
 				qiime feature-table filter-features \
@@ -1434,11 +1549,11 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 					
 				rm "${qzaoutput2}ancom_outputs/${group}/temp.qza" 2> /dev/null
 					
-				echo "Feature table filtering finished"
-				echo "Taxa collapsing starting..."
+				echo -e "${GREEN} Feature table filtering finished${NC}"
+				echo -e "${CYAN}qiime taxa collapse${NC} starting"
 				if [[ "$log" = true ]]; then
-					echo echo "Feature table filtering finished" >&3
-					echo "Taxa collapsing starting..." >&3
+					echo -e "${GREEN} Feature table filtering finished${NC}" >&3
+					echo -e "${CYAN}qiime taxa collapse${NC} starting" >&3
 				fi
 			
 				qiime taxa collapse \
@@ -1447,26 +1562,26 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 					--p-level $collapse_taxa_to_level \
 					--o-collapsed-table "${qzaoutput2}ancom_outputs/${group}/genus.qza"
 				
-				echo "Finished taxa collapsing"
-				echo "Starting pseudocount adding..."
+				echo -e "${GREEN}Finished taxa collapsing${NC}"
+				echo -e "Starting ${CYAN}qiime composition add-pseudocount${NC}"
 				if [[ "$log" = true ]]; then
-					echo "Finished taxa collapsing" >&3
-					echo "Starting pseudocount adding..." >&3
+					echo -e "${GREEN}Finished taxa collapsing${NC}" >&3
+					echo -e "Starting ${CYAN}qiime composition add-pseudocount${NC}" >&3
 				fi
 				
 				qiime composition add-pseudocount \
 					--i-table "${qzaoutput2}ancom_outputs/${group}/genus.qza" \
 					--o-composition-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo.qza"
 				
-				echo "Finished pseudocount adding"
+				echo -e "${GREEN}Finished pseudocount adding${NC}"
 				if [[ "$log" = true ]]; then
-					echo "Finished pseudocount adding" >&3
+					echo -e "${GREEN}Finished pseudocount adding${NC}" >&3
 				fi
 			fi
 			
-			echo "Starting ancom composition"
+			echo -e "Starting ${CYAN}qiime composition ancom${NC}"
 			if [[ "$log" = true ]]; then
-				echo "Starting ancom composition" >&3
+				echo -e "Starting ${CYAN}qiime composition ancom${NC}" >&3
 			fi
 			
 			qiime composition ancom \
@@ -1475,21 +1590,21 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$run_ancom_composi
 				--m-metadata-column $group_to_compare \
 				--o-visualization "${qzaoutput2}ancom_outputs/${group}/ancom_group.qzv"
 		
-			echo "Finished ancom composition and the ancom block for $group"
+			echo -e "${GREEN}Finished ancom composition and the ancom block for ${group}${NC}"
 			if [[ "$log" = true ]]; then
-				echo "Finished ancom composition and the ancom block for $group" >&3
+				echo -e "${GREEN}Finished ancom composition and the ancom block for ${group}${NC}" >&3
 			fi
 		done
 	done
 
 else
-	echo "Either run_ancom is set to false, or taxonomic analyses"
-	echo "have not been completed on the dataset. Ancom analysis"
-	echo "will not proceed."
+	echo -e "${YELLOW}Either run_ancom is set to false, or taxonomic analyses${NC}"
+	echo -e "${YELLOW}have not been completed on the dataset. Ancom analysis${NC}"
+	echo -e "${YELLOW}will not proceed.${NC}"
 	if [[ "$log" = true ]]; then
-		echo "Either run_ancom is set to false, or taxonomic analyses" >&3
-		echo "have not been completed on the dataset. Ancom analysis" >&3
-		echo "will not proceed." >&3
+		echo -e "${YELLOW}Either run_ancom is set to false, or taxonomic analyses${NC}" >&3
+		echo -e "${YELLOW}have not been completed on the dataset. Ancom analysis${NC}" >&3
+		echo -e "${YELLOW}will not proceed.${NC}" >&3
 	fi
 fi
 
@@ -1508,9 +1623,9 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 			
 		mkdir "${qzaoutput2}biplot_outputs" 2> /dev/null
 		
-		echo "Creating rarefied table..."
+		echo -e "Creating rarefied table via ${CYAN}qiime feature-table rarefy${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Creating rarefied table..." >&3
+			echo -e "Creating rarefied table via ${CYAN}qiime feature-table rarefy${NC}" >&3
 		fi
 		
 		qiime feature-table rarefy \
@@ -1518,9 +1633,10 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 			--p-sampling-depth $sampling_depth \
 			--o-rarefied-table "${qzaoutput2}biplot_outputs/rarefied_table.qza"
 		
-		echo "Creating a braycurtis distance matrix..."
+		echo -e "Creating a braycurtis distance matrix via ${CYAN}qiime diversity beta${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Creating a braycurtis distance matrix..." >&3
+			echo "Finished making rarefied table"
+			echo -e "Creating a braycurtis distance matrix via ${CYAN}qiime diversity beta${NC}" >&3
 		fi
 		
 		qiime diversity beta \
@@ -1528,9 +1644,10 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 			--p-metric braycurtis \
 			--o-distance-matrix "${qzaoutput2}biplot_outputs/braycurtis_div.qza"
 		
-		echo "Creating a PCoA..."
+		echo -e "Creating a PCoA via ${CYAN}qiime diversity pcoa${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Creating a PCoA..." >&3
+			echo "Finished creating a braycurtis distance matrix"
+			echo -e "Creating a PCoA via ${CYAN}qiime diversity pcoa${NC}" >&3
 		fi
 		
 		qiime diversity pcoa \
@@ -1538,18 +1655,20 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 			--p-number-of-dimensions $number_of_dimensions \
 			--o-pcoa "${qzaoutput2}biplot_outputs/braycurtis_pcoa.qza"
 		
-		echo "Starting relative frequency table generation..."
+		echo -e "Starting relative frequency table generation via ${CYAN}qiime feature-table relative-frequency${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Starting relative frequency table generation..." >&3
+			echo "Finished creating a PCoA"
+			echo -e "Starting relative frequency table generation via ${CYAN}qiime feature-table relative-frequency${NC}" >&3
 		fi
 		
 		qiime feature-table relative-frequency \
 			--i-table "${qzaoutput2}biplot_outputs/rarefied_table.qza" \
 			--o-relative-frequency-table "${qzaoutput2}biplot_outputs/rarefied_table_relative.qza"
 			
-		echo "Making the biplot for unweighted UniFrac..."
+		echo -e "Making the biplot for unweighted UniFrac via ${CYAN}qiime diversity pcoa-biplot${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Making the biplot for unweighted UniFrac..." >&3
+			echo "Finished creating a relative frequency table"
+			echo -e "Making the biplot for unweighted UniFrac via ${CYAN}qiime diversity pcoa-biplot${NC}" >&3
 		fi
 		
 		qiime diversity pcoa-biplot \
@@ -1557,9 +1676,10 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 			--i-features "${qzaoutput2}biplot_outputs/rarefied_table_relative.qza" \
 			--o-biplot "${qzaoutput2}biplot_outputs/biplot_matrix_unweighted_unifrac.qza"
 			
-		echo "Producing an emperor plot..."
+		echo -e "Producing an emperor plot via ${CYAN}qiime emperor biplot${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Producing an emperor plot..." >&3
+			echo "Finished creating a biplot"
+			echo -e "Producing an emperor plot via ${CYAN}qiime emperor biplot${NC}" >&3
 		fi
 		
 		qiime emperor biplot \
@@ -1568,19 +1688,19 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 			--m-feature-metadata-file "${qzaoutput2}taxonomy.qza" \
 			--o-visualization "${qzaoutput2}biplot_outputs/unweighted_unifrac_emperor_biplot.qzv"
 			
-		echo "Finished producing the emperor plot"
-		echo "PCoA biplot analysis finished"
+		echo -e "${GREEN}Finished producing the emperor plot${NC}"
+		echo -e "${GREEN}PCoA biplot analysis finished${NC}"
 		echo ""
 		if [[ "$log" = true ]]; then
-			echo "Finished producing the emperor plot" >&3
-			echo "PCoA biplot analysis finished" >&3
+			echo -e "${GREEN}Finished producing the emperor plot${NC}" >&3
+			echo -e "${GREEN}PCoA biplot analysis finished${NC}" >&3
 		fi
 	done
 else
-	echo "Either run_biplot is set to false, or taxonomic analyses"
-	echo "have not been completed on the dataset. Biplot production"
-	echo "will not proceed."
-	echo ""
+	echo -e "${YELLOW}Either run_biplot is set to false, or taxonomic analyses${NC}"
+	echo -e "${YELLOW}have not been completed on the dataset. Biplot production${NC}"
+	echo -e "${YELLOW}will not proceed.${NC}"
+	echo -e ""
 fi
 
 
@@ -1598,9 +1718,9 @@ if [ "$run_deicode" = true ] && [ "$sklearn_done" = true ]; then
 			
 		mkdir "${qzaoutput2}deicode_outputs" 2> /dev/null
 		
-		echo "Running beta diversity ordination files..."
+		echo -e "Running beta diversity ordination files via ${CYAN}qiime deicode rpca${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Running beta diversity ordination files..." >&3
+			echo -e "Running beta diversity ordination files via ${CYAN}qiime deicode rpca${NC}" >&3
 		fi
 
 		qiime deicode rpca \
@@ -1610,11 +1730,11 @@ if [ "$run_deicode" = true ] && [ "$sklearn_done" = true ]; then
 			--o-biplot "${qzaoutput2}deicode_outputs/ordination.qza" \
 			--o-distance-matrix "${qzaoutput2}deicode_outputs/distance.qza"
 		
-		echo "Finished beta diversity ordination files..."
-		echo "Creating biplot..."
+		echo -e "${GREEN}Finished beta diversity ordination files${NC}"
+		echo -e "Creating biplot via ${CYAN}qiime emperor biplot${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished beta diversity ordination files..." >&3
-			echo "Creating biplot..." >&3
+			echo -e "${GREEN}Finished beta diversity ordination files${NC}" >&3
+			echo -e "Creating biplot via ${CYAN}qiime emperor biplot${NC}" >&3
 		fi
 		
 		#TODO: How the fuck do I get the biplot to show Taxon Classification instead of feature ID for the bacteria
@@ -1625,25 +1745,23 @@ if [ "$run_deicode" = true ] && [ "$sklearn_done" = true ]; then
 			--o-visualization "${qzaoutput2}deicode_outputs/biplot.qzv" \
 			--p-number-of-features $num_of_features
 		
-		echo "Finished creating biplot..."
-		echo "Creating beta-group-significance..."
+		echo -e "${GREEN}Finished creating biplot${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished creating biplot..." >&3
-			echo "Creating beta-group-significance..." >&3
+			echo -e "Finished creating biplot..." >&3
 		fi
 		
 		#Make a PERMANOVA comparison to see if $group explains the clustering in biplot.qzv
 		mkdir "${qzaoutput2}deicode_outputs/PERMANOVAs" 2>/dev/null
 		for group in "${beta_rerun_group[@]}"
 		do
-			echo "Starting beta group: $group"
+			echo -e "Starting ${CYAN}beta-group-significance${NC}: ${BMAGENTA}${group}${NC}"
 			if [[ "$log" = true ]]; then
-				echo "Starting beta group: $group" >&3
+				echo -e "Starting ${CYAN}beta-group-significance${NC}: ${BMAGENTA}${group}${NC}" >&3
 			fi
 			
 			if [ "$verbose" = true ]; then
-				echo "group = $group"
-				echo "qzaoutput2 = $qzaoutput2"
+				echo "group = ${BMAGENTA}${group}${NC}"
+				echo "qzaoutput2 = ${BMAGENTA}${qzaoutput2}${NC}"
 			fi
 			
 			qiime diversity beta-group-significance \
@@ -1653,22 +1771,22 @@ if [ "$run_deicode" = true ] && [ "$sklearn_done" = true ]; then
 				--p-method permanova \
 				--o-visualization "${qzaoutput2}deicode_outputs/PERMANOVAs/${group}-permanova.qzv"
 			
-			echo "Finished beta group: $group"
+			echo -e "${GREEN}Finished beta group: ${group}${NC}"
 			if [[ "$log" = true ]]; then
-				echo "Finished beta group: $group" >&3
+				echo -e "${GREEN}Finished beta group: ${group}${NC}" >&3
 			fi
 		done
 		
-		echo "Finished DEICODE for $repqza"
+		echo -e "${GREEN}Finished DEICODE for ${repqza}${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished DEICODE for $repqza" >&3
+			echo -e "${GREEN}Finished DEICODE for ${repqza}${NC}" >&3
 		fi 
 		
 	done
 else
-	echo "Either run_deicode is set to false, or taxonomic analyses"
-	echo "have not been completed on the dataset. Deicode analysis"
-	echo "will not proceed."
+	echo -e "${YELLOW}Either run_deicode is set to false, or taxonomic analyses${NC}"
+	echo -e "${YELLOW}have not been completed on the dataset. Deicode analysis${NC}"
+	echo -e "${YELLOW}will not proceed.${NC}"
 	echo ""
 fi
 
@@ -1686,9 +1804,9 @@ if [ "$run_picrust" = true ] && [ "$sklearn_done" = true ]; then
 		#Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
 		
-		echo "Starting the picrust pipeline for: ${qzaoutput2}"
+		echo -e "Starting the picrust pipeline for: ${BMAGENTA}${qzaoutput2}${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Starting the picrust pipeline for: ${qzaoutput2}" >&3
+			echo echo -e "Starting the picrust pipeline for: ${BMAGENTA}${qzaoutput2}${NC}" >&3
 		fi
 		
 		qiime picrust2 full-pipeline \
@@ -1699,11 +1817,11 @@ if [ "$run_picrust" = true ] && [ "$sklearn_done" = true ]; then
 			--p-max-nsti $max_nsti \
 			--verbose
 		
-		echo "Finished an execution of the picrust pipeline"
-		echo "Starting feature table summarization of pathway_abundance.qza"
+		echo -e "${GREEN}Finished an execution of the picrust pipeline${NC}"
+		echo -e "Starting feature table summarization of ${BMAGENTA}pathway_abundance.qza${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished an execution of the picrust pipeline" >&3
-			echo "Starting feature table summarization of pathway_abundance.qza" >&3
+			echo -e "${GREEN}Finished an execution of the picrust pipeline${NC}" >&3
+			echo -e "Starting feature table summarization of ${BMAGENTA}pathway_abundance.qza${NC}" >&3
 		fi
 		
 		qiime feature-table summarize \
@@ -1718,11 +1836,11 @@ if [ "$run_picrust" = true ] && [ "$sklearn_done" = true ]; then
 			--i-table "${qzaoutput2}q2-picrust2_output/ec_metagenome.qza" \
 			--o-visualization "${qzaoutput2}q2-picrust2_output/ec_metagenome.qzv"
 		
-		echo "Finished feature table summarization"
-		echo "Starting generation of core-metrics using the outputted pathway_abundance.qza"
+		echo -e "${GREEN}Finished feature table summarization${NC}"
+		echo -e "Starting generation of ${CYAN}core-metrics${NC} using the outputted ${BMAGENTA}pathway_abundance.qza${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished feature table summarization" >&3
-			echo "Starting generation of core-metrics using the outputted pathway_abundance.qza" >&3
+			echo -e "${GREEN}Finished feature table summarization${NC}" >&3
+			echo -e "Starting generation of ${CYAN}core-metrics${NC} using the outputted ${BMAGENTA}pathway_abundance.qza${NC}" >&3
 		fi
 		
 		qiime diversity core-metrics \
@@ -1731,21 +1849,21 @@ if [ "$run_picrust" = true ] && [ "$sklearn_done" = true ]; then
 		   --m-metadata-file $metadata_filepath \
 		   --output-dir "${qzaoutput2}q2-picrust2_output/pathabun_core_metrics"
 		
-		echo "Finished core-metrics generation"
+		echo -e "${GREEN}Finished core-metrics generation${NC}"
 		if [[ "$log" = true ]]; then
-			echo "Finished core-metrics generation" >&3
+			echo -e "${GREEN}Finished core-metrics generation${NC}" >&3
 		fi
 		
 	done
 	
-	echo "Finished the picrust pipeline block"
+	echo -e "${GREEN}Finished the picrust pipeline block${NC}"
 	if [[ "$log" = true ]]; then
-		echo "Finished the picrust pipeline block" >&3
+		echo "${GREEN}Finished the picrust pipeline block${NC}" >&3
 	fi
 else
-	echo "Either run_picrust is set to false, or taxonomic analyses"
-	echo "have not been completed on the dataset. Picrust2 production"
-	echo "will not proceed."
+	echo -e "${YELLOW}Either run_picrust is set to false, or taxonomic analyses${NC}"
+	echo -e "${YELLOW}have not been completed on the dataset. Picrust2 production${NC}"
+	echo -e "${YELLOW}will not proceed.${NC}"
 	echo ""
 fi
 
@@ -1761,7 +1879,7 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 	fi
 	if [[ "$verbose" = true ]]; then
 		echo "gradient_column is $gradient_column"
-		echo "metadata_filepath is $metadata_filepath"
+		echo -e "metadata_filepath is ${BMAGENTA}${metadata_filepath}${NC}"
 		echo "gradient_column_categorical is $gradient_column_categorical"
 		echo "taxa_level is $taxa_level"
 		echo "balance_name is $balance_name"
@@ -1776,17 +1894,23 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 		
 		if [ "$use_correlation_clustering" = true ]; then
 			
-			echo "Using correlation-clustering for gneiss analysis"
+			echo -e "Using ${CYAN}correlation-clustering${NC} for gneiss analysis"
+			if [[ "$log" = true ]]; then
+				echo -e "Using ${CYAN}correlation-clustering${NC} for gneiss analysis" >&3
+			fi
 
 			qiime gneiss correlation-clustering \
 				--i-table "${qzaoutput2}table.qza" \
 				--o-clustering "${qzaoutput2}gneiss_outputs/hierarchy.qza"
-		
+			
 		fi
 		
 		if [ "$use_gradient_clustering" = true ]; then
 			
-			echo "Using gradient-clustering for gneiss analysis"
+			echo -e "Using ${CYAN}gradient-clustering${NC} for gneiss analysis"
+			if [[ "$log" = true ]]; then
+				echo -e "Using ${CYAN}gradient-clustering${NC} for gneiss analysis" >&3
+			fi
 
 			qiime gneiss gradient-clustering \
 				--i-table "${qzaoutput2}table.qza" \
@@ -1796,14 +1920,24 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 		
 		fi
 		
-		echo "Producing balances..."
+		echo -e "${GREEN}Finished clustering${NC}"
+		echo -e "Producing balances via ${CYAN}qiime gneiss ilr-hierarchical${NC}"
+		if [[ "$log" = true ]]; then
+			echo -e "${GREEN}Finished clustering${NC}" >&3
+			echo -e "Producing balances via ${CYAN}qiime gneiss ilr-hierarchical${NC}" >&3
+		fi
 		
 		qiime gneiss ilr-hierarchical \
 			--i-table "${qzaoutput2}table.qza" \
 			--i-tree "${qzaoutput2}gneiss_outputs/hierarchy.qza" \
 			--o-balances "${qzaoutput2}gneiss_outputs/balances.qza"
-			
-		echo "Producing regression..."
+		
+		echo -e "${GREEN}Finished balance production${NC}"
+		echo -e "Producing regression via ${CYAN}qiime gneiss ols-regression${NC}"
+		if [[ "$log" = true ]]; then
+			echo -e "${GREEN}Finished balance production${NC}" >&3
+			echo -e "Producing regression via ${CYAN}qiime gneiss ols-regression${NC}" >&3
+		fi
 		
 		qiime gneiss ols-regression \
 			--p-formula $gradient_column \
@@ -1811,8 +1945,13 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 			--i-tree "${qzaoutput2}gneiss_outputs/gradient-hierarchy.qza" \
 			--m-metadata-file $metadata_filepath \
 			--o-visualization "${qzaoutput2}gneiss_outputs/regression_summary_pCG.qzv"
-			
-		echo "Producing heatmap..."
+		
+		echo -e "${GREEN}Finished regression${NC}"
+		echo -e "Producing heatmap via ${CYAN}qiime gneiss dendrogram-heatmap${NC}"
+		if [[ "$log" = true ]]; then
+			echo -e "${GREEN}Finished regression${NC}" >&3
+			echo -e "Producing heatmap via ${CYAN}qiime gneiss dendrogram-heatmap${NC}" >&3
+		fi
 
 		qiime gneiss dendrogram-heatmap \
 			--i-table "${qzaoutput2}table.qza" \
@@ -1821,8 +1960,13 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 			--m-metadata-column $gradient_column_categorical \
 			--p-color-map $heatmap_type \
 			--o-visualization "${qzaoutput2}gneiss_outputs/heatmap_pCG.qzv"
-			
-		echo "Creating gneiss output..."
+		
+		echo -e "${GREEN}Finished heatmap${NC}"
+		echo -e "Creating gneiss output via ${CYAN}qiime gneiss balance-taxonomy${NC}"
+		if [[ "$log" = true ]]; then
+			echo -e "${GREEN}Finished heatmap${NC}" >&3
+			echo -e "Creating gneiss output via ${CYAN}qiime gneiss balance-taxonomy${NC}" >&3
+		fi
 
 		qiime gneiss balance-taxonomy \
 			--i-table "${qzaoutput2}table.qza" \
@@ -1834,18 +1978,18 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 			--m-metadata-column $gradient_column_categorical \
 			--o-visualization "${qzaoutput2}gneiss_outputs/${balance_name}_taxa_summary_${gradient_column_categorical}_level_${taxa_level}.qzv"
 	done
-	echo "Finished Gneiss gradient-clustering analysis block"
+	echo -e "${GREEN}Finished Gneiss gradient-clustering analysis block${NC}"
 	echo ""
 	if [[ "$log" = true ]]; then
-		echo "Finished Gneiss gradient-clustering analysis block" >&3
+		echo -e "${GREEN}Finished Gneiss gradient-clustering analysis block${NC}" >&3
 	else
-		echo "Either run_gneiss is set to false, or taxonomic analyses"
-		echo "have not been completed on the dataset. Gneiss analysis"
-		echo "will not proceed."
+		echo -e "${YELLOW}Either run_gneiss is set to false, or taxonomic analyses"
+		echo -e "${YELLOW}have not been completed on the dataset. Gneiss analysis"
+		echo -e "${YELLOW}will not proceed."
 		if [[ "$log" = true ]]; then
-			echo "Either run_gneiss is set to false, or taxonomic analyses" >&3
-			echo "have not been completed on the dataset. Gneiss analysis" >&3
-			echo "will not proceed." >&3
+			echo -e "${YELLOW}Either run_gneiss is set to false, or taxonomic analyses" >&3
+			echo -e "${YELLOW}have not been completed on the dataset. Gneiss analysis" >&3
+			echo -e "${YELLOW}will not proceed." >&3
 		fi
 	fi
 fi
@@ -1865,6 +2009,7 @@ echo "waterway has finished successfully"
 echo ""
 if [[ "$log" = true ]]; then
 	echo "waterway has finished successfully" >&3
+	replace_colorcodes_log ${name}.out
 fi
 
 exit 0
