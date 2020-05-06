@@ -21,6 +21,10 @@ YELLOW='\033[1;33m'
 BMAGENTA='\033[1;35m'
 NC='\033[0m'
 
+LBLUE='\033[1;36m' #Only used for -n
+LGREEN='\033[1;32m' #Only used for -n
+LGREY='\033[0;37m' #Only used for -n
+
 #Check that a Qiime2 environment is active
 if ! type "qiime" > /dev/null 2>&1; then
 	echo -e "" >&2
@@ -162,8 +166,10 @@ do
 		install_picrust=true
 	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
-		echo "Currently running waterway $version"
-		echo "Currently running Qiime2 $q2versionnum"
+		echo ""
+		echo -e "Currently running ${LBLUE}waterway${NC} ${LGREY}${version}${NC}"
+		echo -e "Currently running ${LGREEN}Qiime2${NC} ${LGREY}${q2versionnum}${NC}"
+		echo ""
 		exit 0
 	fi
 done
