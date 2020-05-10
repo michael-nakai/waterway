@@ -272,7 +272,9 @@ if [ ! -f $srcpath ]; then
 	echo -e "qzaoutput=/home/username/folder with raw-data, metadata, and outputs folders/outputs/" >> config.txt
 	echo -e "metadata_filepath=/home/username/folder with raw-data, metadata, and outputs folders/metadata/metadata.tsv\n" >> config.txt
 	
-	echo -e "#If using a manifest file, use the manifest filepath here" >> config.txt
+	echo -e "#Fill these out if using a manifest file" >> config.txt
+	echo -e "Fpattern=_R1_" >> config.txt
+	echo -e "Rpattern=_R2_" >> config.txt
 	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv" >> config.txt
 	echo -e "manifest_format=PairedEndFastqManifestPhred33V2\n" >> config.txt
 	
@@ -416,20 +418,24 @@ fi
 #if -M was set, source config.txt and make a manifest file
 if [[ "$make_manifest" = true ]] ; then
 	# Get list of R1/R2 files
-	R1_list=(${filepath}/*_R1*fastq.gz)
-	R2_list=(${filepath}/*_R2*fastq.gz)
+	R1_list=(${filepath}/*${Fpattern}*fastq.gz)
+	R2_list=(${filepath}/*${Rpattern}*fastq.gz)
 	
-	echo "R1_list = ${R1_list[@]}"
+	if [[ "$log" = true ]]; then
+		echo "R1_list = ${R1_list[@]}"
+		echo "R2_list = ${R2_list[@]}"
+	fi
 	
 	# Write headers to manifest.tsv
 	echo -e "#SampleID\tforward-absolute-filepath\treverse-absolute-filepath" > manifest.tsv
 
 	x=0
 	for fl in ${R1_list[@]}; do
-		echo "starting $(basename $fl)"
+		if [[ "$log" = true ]]; then
+			echo "Starting $(basename $fl)"
+		fi
 		ID=$(basename $fl)
 		ID=${ID%%_*}
-		echo $ID
 		echo -e "${ID}\t${fl}\t${R2_list[x]}" >> manifest.tsv
 		x=$((x+1))
 	done
