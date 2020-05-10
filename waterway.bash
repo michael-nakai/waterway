@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 #Version number here
-version="2.1.1b"
+version="2.1.1c"
 
 #Finding Qiime2 version number
 q2versionnum=$(qiime --version)
