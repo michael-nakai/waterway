@@ -415,50 +415,27 @@ fi
 #>>>>>>>>>>>>>>>>>>>>START MANIFEST BLOCK>>>>>>>>>>>>>>>>>>>>
 #if -M was set, source config.txt and make a manifest file
 if [[ "$make_manifest" = true ]] ; then
-	filepath2=`ls ${filepath}/*.gz`
-	export filepath
-	export scriptdir
-	export projpath
-	export filepath2
-	python - <<END
-import os
-data = os.environ['filepath2']
-rawpath = os.environ['filepath']
-scriptdir = os.environ['scriptdir']
-data = data.rstrip()
-data = data.split("\n")
+	# Get list of R1/R2 files
+	R1_list=(${filepath}/*_R1*fastq.gz)
+	R2_list=(${filepath}/*_R2*fastq.gz)
+	
+	echo "R1_list = ${R1_list[@]}"
+	
+	# Write headers to manifest.tsv
+	echo -e "#SampleID\tforward-absolute-filepath\treverse-absolute-filepath" > manifest.tsv
 
-newdata = []
-IDlist = []
-#LINE10
-#Create a list of the full filenames
-for element in data:
-	a = element.rfind("/")
-	newdata.append(element[a+1:])
-
-#Create a list of only IDs (only take the string until the first "_")
-for element in newdata:
-	a = element.find("_")
-	IDlist.append(element[0:a])
-#LINE20
-#Remove duplicate IDs from IDlist
-IDlist = list(dict.fromkeys(IDlist))
-
-#Make the tsv. The for loop makes the individual rows for each ID
-with open("{0}/manifest.tsv".format(scriptdir), "w") as file:
-	file.write("#SampleID\tforward-absolute-filepath\treverse-absolute-filepath")
-	i = 0
-	for element in IDlist:
-		a = element
-		b = "{0}/{1}".format(rawpath, newdata[i]) #LINE30
-		i += 1
-		c = "{0}/{1}".format(rawpath, newdata[i])
-		i += 1
-		file.write("\n{0}\t{1}\t{2}".format(a, b, c))
-		
-print("Ran without errors")
-END
+	x=0
+	for fl in ${R1_list[@]}; do
+		echo "starting $(basename $fl)"
+		ID=$(basename $fl)
+		ID=${ID%%_*}
+		echo $ID
+		echo -e "${ID}\t${fl}\t${R2_list[x]}" >> manifest.tsv
+		x=$((x+1))
+	done
+	echo -e "${BMAGENTA}manifest.tsv${NC} created"
 	if [[ "$log" = true ]]; then
+		echo -e "${BMAGENTA}manifest.tsv${NC} created"
 		replace_colorcodes_log ${name}.out
 	fi
 	exit 0
