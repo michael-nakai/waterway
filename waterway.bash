@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 #Version number here
-version="2.1.1d"
+version="2.1.2"
 
 #Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -273,8 +273,8 @@ if [ ! -f $srcpath ]; then
 	echo -e "metadata_filepath=/home/username/folder with raw-data, metadata, and outputs folders/metadata/metadata.tsv\n" >> config.txt
 	
 	echo -e "#Fill these out if using a manifest file" >> config.txt
-	echo -e "Fpattern=_R1_" >> config.txt
-	echo -e "Rpattern=_R2_" >> config.txt
+	echo -e "Fpattern=_R1" >> config.txt
+	echo -e "Rpattern=_R2" >> config.txt
 	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv" >> config.txt
 	echo -e "manifest_format=PairedEndFastqManifestPhred33V2\n" >> config.txt
 	
