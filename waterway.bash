@@ -150,6 +150,7 @@ do_fastqc=false
 rename_files=false
 install_deicode=false
 install_picrust=false
+filter=false
 single_end_reads=false # Currently does nothing
 graphs=false # Currently does nothing
 devtest=false # This is for anything I want to test
@@ -193,6 +194,9 @@ do
 	if [ "$op" == "-r" ] || [ "$op" == "--remove-underscores" ] ; then
 		rename_files=true
 	fi
+	if [ "$op" == "-T" ] || [ "$op" == "--filter-table" ] ; then
+		filter=true
+	fi
 	if [ "$op" == "--install-deicode" ] ; then
 		install_deicode=true
 	fi
@@ -235,6 +239,7 @@ if [[ "$hlp" = true ]] ; then
 	echo -e "-f\tShow the exact list of functions used in this script and their output files"
 	echo -e "-c\tTrain a greengenes 13_5 99% coverage otu classifier."
 	echo -e "-r\tReplaces underscores with hyphens from filenames that match a pattern that includes underscores to replace."
+	echo -e "-F\t Filters the table.qza and rep-seqs.qza by metadata files located in metadata/filter_inputs/"
 	echo -e "-h\tShow this help dialogue"
 	echo ""
 	exit 0
@@ -484,6 +489,71 @@ if [[ "$make_manifest" = true ]] ; then
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END MANIFEST BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+#>>>>>>>>>>>>>>>>>>>>START FILTER TABLE BLOCK>>>>>>>>>>>>>>>>>>>>
+if [[ "$filter" = true ]] ; then
+	
+	metadata_to_filter="${metadata_filepath}/filter_inputs"
+	
+	#Check if the metadata to filter folder was made yet
+	if [ ! -d "${metadata_to_filter}" ]; then
+	
+		mkdir $metadata_to_filter
+		
+		echo -e ""
+		echo -e "The folder ${BMAGENTA}filter_inputs${NC} was created in your metadata"
+		echo -e "filepath. Please put your filtered metadata files in that folder, then"
+		echo -e "rerun this command."
+		echo -e ""
+	
+		logger "No filter_inputs folder was found in the metadata filepath"
+		logger "Created metadata/filter_inputs"
+		
+		if [[ "$log" = true ]]; then
+			replace_colorcodes_log ${name}.out
+		fi
+		
+		exit 0
+	fi
+	
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		#Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+		
+		#Find the table/repseqs
+		input="${qzaoutput2}table.qza"
+		repinput="${qzaoutput2}rep-seqs.qza"
+		
+		#Make the folders for tables/repseqs
+		mkdir "${qzaoutput2}/tables"
+		mkdir "${qzaoutput2}/rep-seqs"
+		
+		for file in "${metadata_to_filter}/*"
+		do
+			
+			xbase=${file##*/}
+			xpref=${xbase%.*}
+			
+			echolog "Starting ${CYAN}feature-table filter-samples${NC} for ${BMAGENTA}${file}${NC}"
+			
+			qiime feature-table filter-samples \
+				--i-table $input \
+				--m-metadata-file $file \
+				--o-filtered-table "${qzaoutput2}/tables/${xpref}-table.qza"
+			
+			qiime feature-table filter-seqs \
+				--i-data $repinput \
+				--i-table "${qzaoutput2}/tables/${xpref}-table.qza" \
+				--o-filtered-data "${qzaoutput2}/rep-seqs/${xpref}-rep-seqs.qza"
+			
+		done
+	done
+fi
+
+#<<<<<<<<<<<<<<<<<<<<END FILTER TABLE BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 #>>>>>>>>>>>>>>>>>>>>START RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
