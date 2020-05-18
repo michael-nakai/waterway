@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.1.4"
+version="2.1.5"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -120,7 +120,7 @@ function talkative {
 	if [[ $verbose = true ]]; then
 		echo -e $1
 	fi
-	if [[ $log = true || $verbose = true ]]; then
+	if [[ $log = true && $verbose = true ]]; then
 		echo -e $1 >&3
 	fi
 }
@@ -356,9 +356,14 @@ if [ ! -f $analysis_path ]; then
 	echo -e "#Phyloseq and alpha rarefaction" >> optional_analyses.txt
 	echo -e "rerun_phylo_and_alpha=false\n" >> optional_analyses.txt
 	
-	echo -e "#Beta analysis" >> optional_analyses.txt
+	echo -e "#Beta analysis for categorical variables" >> optional_analyses.txt
 	echo -e "rerun_beta_analysis=false" >> optional_analyses.txt
 	echo -e "rerun_group=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
+	
+	echo -e "#Beta analysis for continuous variables" >> optional_analyses.txt
+	echo -e "run_beta_continuous=false" >> optional_analyses.txt
+	echo -e "continuous_group=('Group1' 'Group2' 'etc...')" >> optional_analyses.txt
+	echo -e "correlation_method='spearman'\n" >> optional_analyses.txt
 	
 	echo -e "#Ancom analysis" >> optional_analyses.txt
 	echo -e "run_ancom=false" >> optional_analyses.txt
@@ -528,8 +533,8 @@ if [[ "$filter" = true ]] ; then
 		repinput="${qzaoutput2}rep-seqs.qza"
 		
 		#Make the folders for tables/repseqs
-		mkdir "${qzaoutput2}/tables"
-		mkdir "${qzaoutput2}/rep-seqs"
+		mkdir "${qzaoutput2}/tables" 2> /dev/null
+		mkdir "${qzaoutput2}/rep-seqs" 2> /dev/null
 		
 		for file in "${metadata_to_filter}/*"
 		do
@@ -744,7 +749,7 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 	talkative "qzaoutput = ${BMAGENTA}${qzaoutput}${NC}"
 	talkative "metadata = ${BMAGENTA}${metadata_filepath}${NC}"
 	talkative ""
-	talkative "manifest_status is ${BMAGENTA}$manifest_status"
+	talkative "manifest_status is ${BMAGENTA}$manifest_status${NC}"
 	if [[ "$manifest_status" = true ]]; then
 		echolog "manifest is ${BMAGENTA}${manifest}${NC}"
 	fi
@@ -1050,7 +1055,6 @@ if [ "$import_done" = false ]; then
 			
 		talkative "${GREEN}    Finished importing from ${filepath}${NC}"
 		
-		fi
 	fi
 	
 	#If manifest was set to true, we import via the manifest path
@@ -1063,9 +1067,8 @@ if [ "$import_done" = false ]; then
 			--output-path ${qzaoutput}imported_seqs.qza
 			
 		talkative "${GREEN}    Finished importing from ${manifest}${NC}"
-
-		fi
 	fi
+	
 	echolog "${GREEN}    Finished importing to qza${NC}"
 fi
 
@@ -1079,8 +1082,6 @@ if [ "$importvis_done" = false ]; then
 		--o-visualization ${qzaoutput}imported_seqs.qzv
 	
 	talkative "${GREEN}    Finished summarization of ${qzaoutput}imported_seqs.qza${NC}"
-
-	fi
 
 	echolog "${GREEN}    Finished summarizing imported data to qzv${NC}"
 	echolog "${GREEN}    Finished import block"
@@ -1341,6 +1342,7 @@ fi
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>RERUN BLOCK>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+# Rerun alpha diversity (if needed for some reason)
 if [ "$rerun_phylo_and_alpha" = true ]; then
 	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
 	do
@@ -1377,6 +1379,7 @@ if [ "$rerun_phylo_and_alpha" = true ]; then
 	done
 fi
 
+# Beta diversity (categorical data)
 if [ "$rerun_beta_analysis" = true ]; then
 	for group in "${rerun_group[@]}"
 	do
@@ -1400,7 +1403,7 @@ if [ "$rerun_beta_analysis" = true ]; then
 			qiime diversity beta-group-significance \
 				--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
 				--m-metadata-file $metadata_filepath \
-				--m-metadata-column $rerun_group \
+				--m-metadata-column $group \
 				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/unweighted-unifrac-beta-significance.qzv" \
 				--p-pairwise
 			
@@ -1408,11 +1411,73 @@ if [ "$rerun_beta_analysis" = true ]; then
 			qiime diversity beta-group-significance \
 				--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
 				--m-metadata-file $metadata_filepath \
-				--m-metadata-column $rerun_group \
+				--m-metadata-column $group \
 				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/weighted-unifrac-beta-significance.qzv" \
 				--p-pairwise
 			
 			echolog "${GREEN}    Finished beta diversity analysis for $group${NC}"
+		done
+	done
+fi
+
+# Beta analysis (continuous data)
+if [ "$run_beta_continuous" = true ]; then
+	for group in "${continuous_group[@]}"
+	do
+		for fl in ${qzaoutput}*/rep-seqs.qza
+		do
+			#Defining qzaoutput2
+			qzaoutput2=${fl%"rep-seqs.qza"}
+			
+			unweightedDistance="${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza"
+			weightedDistance="${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza"
+			
+			mkdir "${qzaoutput2}rerun_beta_continuous" 2> /dev/null
+			mkdir "${qzaoutput2}rerun_beta_continuous/${group}" 2> /dev/null
+			mkdir "${qzaoutput2}rerun_beta_continuous/outputs" 2> /dev/null
+			
+			talkative "group = $group"
+			talkative "fl = $fl"
+			talkative "qzaoutput2 = $qzaoutput2"
+			
+			echolog "Starting ${CYAN}qiime metadata distance-matrix${NC}"
+			
+			qiime metadata distance-matrix \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $group \
+				--o-distance-matrix "${qzaoutput2}rerun_beta_continuous/${group}/${group}_distance_matrix.qza"
+			
+			echolog "${GREEN}    Finished qiime metadata distance-matrix${NC}"
+			echolog "Starting unweighted ${CYAN}qiime diversity mantel${NC} for ${BMAGENTA}${group}${NC}"
+			
+			qiime diversity mantel \
+				--i-dm1 "${qzaoutput2}rerun_beta_continuous/${group}/${group}_distance_matrix.qza" \
+				--i-dm2 $unweightedDistance \
+				--p-method $correlation_method \
+				--p-label1 "${group}_distance_matrix" \
+				--p-label2 "unweighted_unifrac_distance_matrix" \
+				--p-intersect-ids \
+				--o-visualization "${qzaoutput2}rerun_beta_continuous/${group}/${group}_unweighted_beta_div_cor"
+			
+			echolog "${GREEN}    Finished unweighted qiime diversity mantel${NC}"
+			echolog "Starting weighted ${CYAN}qiime diversity mantel${NC} for ${BMAGENTA}${group}${NC}"
+			
+			qiime diversity mantel \
+				--i-dm1 "${qzaoutput2}rerun_beta_continuous/${group}/${group}_distance_matrix.qza" \
+				--i-dm2 $weightedDistance \
+				--p-method $correlation_method \
+				--p-label1 "${group}_distance_matrix" \
+				--p-label2 "weighted_unifrac_distance_matrix" \
+				--p-intersect-ids \
+				--o-visualization "${qzaoutput2}rerun_beta_continuous/${group}/${group}_weighted_beta_div_cor"
+			
+			echolog "${GREEN}    Finished weighted qiime diversity mantel${NC}"
+			
+			unout="${qzaoutput2}rerun_beta_continuous/${group}/${group}_unweighted_beta_div_cor.qzv"
+			weout="${qzaoutput2}rerun_beta_continuous/${group}/${group}_weighted_beta_div_cor.qzv"
+			
+			cp $unout $weout "${qzaoutput2}rerun_beta_continuous/outputs/" 2> /dev/null
+			
 		done
 	done
 fi
