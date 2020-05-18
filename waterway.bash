@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.1.3a"
+version="2.1.4"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -358,7 +358,7 @@ if [ ! -f $analysis_path ]; then
 	echo -e "#Ancom analysis" >> optional_analyses.txt
 	echo -e "run_ancom=false" >> optional_analyses.txt
 	echo -e "make_collapsed_table=false" >> optional_analyses.txt
-	echo -e "collapse_taxa_to_level=6" >> optional_analyses.txt
+	echo -e "collapse_taxa_to_level=(2 6)" >> optional_analyses.txt
 	echo -e "group_to_compare=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
 	
 	echo -e "#Picrust2 Analysis (Picrust2 must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
@@ -699,90 +699,6 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END VERBOSE BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-
-#>>>>>>>>>>>>>>>>>>>>>>>>>>RERUN BLOCK>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-#TODO: Make so that more than one analyses can be rerun at a time.
-#Maybe nest the "exit 0" into an if block (if number of reruns run == number of true vars in analyses_to_rerun.txt, then exit).
-
-if [ "$rerun_phylo_and_alpha" = true ]; then
-	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
-	do
-		#Defining qzaoutput2
-		qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
-		
-		mkdir "${qzaoutput2}rerun_alpha" 2> /dev/null
-		
-		echolog "Rerunning ${CYAN}core-metrics-phylogenetic${NC} for ${BMAGENTA}${qzaoutput2}${NC}"
-		qiime diversity core-metrics-phylogenetic \
-			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
-			--i-table "${qzaoutput2}table.qza" \
-			--p-sampling-depth $sampling_depth \
-			--m-metadata-file $metadata_filepath \
-			--output-dir "${qzaoutput2}rerun_alpha/core-metrics-results"
-			
-		echolog "${GREEN}    Finished core-metrics-phylogenetic for ${qzaoutput2}${NC}"
-
-		talkative "Starting ${CYAN}alpha-group-significance${NC} and ${CYAN}alpha-rarefaction${NC}"
-
-		qiime diversity alpha-group-significance \
-			--i-alpha-diversity "${qzaoutput2}rerun_alpha/core-metrics-results/faith_pd_vector.qza" \
-			--m-metadata-file $metadata_filepath \
-			--o-visualization "${qzaoutput2}rerun_alpha/core-metrics-results/faith-pd-group-significance.qzv"
-
-		qiime diversity alpha-rarefaction \
-			--i-table "${qzaoutput2}rerun_alpha/table.qza" \
-			--i-phylogeny "${qzaoutput2}rerun_alpha/rooted-tree.qza" \
-			--p-max-depth $sampling_depth \
-			--m-metadata-file $metadata_filepath \
-			--o-visualization "${qzaoutput2}rerun_alpha/alpha-rarefaction.qzv"
-		
-		talkative "${GREEN}    Finished alpha rarefaction and group significance${NC}"
-	done
-fi
-
-if [ "$rerun_beta_analysis" = true ]; then
-	for group in "${rerun_group[@]}"
-	do
-		for fl in ${qzaoutput}*/rep-seqs.qza
-		do
-			#Defining qzaoutput2
-			qzaoutput2=${fl%"rep-seqs.qza"}
-			
-			talkative "group = $group"
-			talkative "fl = $fl"
-			talkative "qzaoutput2 = $qzaoutput2"
-			
-			mkdir "${qzaoutput2}beta_div_reruns" 2> /dev/null
-			return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1
-			echo $(return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1)
-			mkdir "${qzaoutput2}beta_div_reruns/rerun_${group}"
-			
-			echolog "Starting ${CYAN}beta-group-significance${NC} for ${group}"
-			
-			#For unweighted
-			qiime diversity beta-group-significance \
-				--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
-				--m-metadata-file $metadata_filepath \
-				--m-metadata-column $rerun_group \
-				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/unweighted-unifrac-beta-significance.qzv" \
-				--p-pairwise
-			
-			#For weighted
-			qiime diversity beta-group-significance \
-				--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
-				--m-metadata-file $metadata_filepath \
-				--m-metadata-column $rerun_group \
-				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/weighted-unifrac-beta-significance.qzv" \
-				--p-pairwise
-			
-			echolog "${GREEN}    Finished beta diversity analysis for $group${NC}"
-		done
-	done
-fi
-
-#<<<<<<<<<<<<<<<<<<<<END RERUN BLOCK<<<<<<<<<<<<<<<<<<<<
 
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>TRAINING CLASSIFIER BLOCK>>>>>>>>>>>>>>>>>>>>>>>
@@ -1353,6 +1269,87 @@ fi
 ###ALL CODE AFTER THIS POINT WILL EXECUTE ONLY AFTER THE MAIN CODE BLOCK HAS BEEN RUN###
 
 
+#>>>>>>>>>>>>>>>>>>>>>>>>>>RERUN BLOCK>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$rerun_phylo_and_alpha" = true ]; then
+	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
+	do
+		#Defining qzaoutput2
+		qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
+		
+		mkdir "${qzaoutput2}rerun_alpha" 2> /dev/null
+		
+		echolog "Rerunning ${CYAN}core-metrics-phylogenetic${NC} for ${BMAGENTA}${qzaoutput2}${NC}"
+		qiime diversity core-metrics-phylogenetic \
+			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
+			--i-table "${qzaoutput2}table.qza" \
+			--p-sampling-depth $sampling_depth \
+			--m-metadata-file $metadata_filepath \
+			--output-dir "${qzaoutput2}rerun_alpha/core-metrics-results"
+			
+		echolog "${GREEN}    Finished core-metrics-phylogenetic for ${qzaoutput2}${NC}"
+
+		talkative "Starting ${CYAN}alpha-group-significance${NC} and ${CYAN}alpha-rarefaction${NC}"
+
+		qiime diversity alpha-group-significance \
+			--i-alpha-diversity "${qzaoutput2}rerun_alpha/core-metrics-results/faith_pd_vector.qza" \
+			--m-metadata-file $metadata_filepath \
+			--o-visualization "${qzaoutput2}rerun_alpha/core-metrics-results/faith-pd-group-significance.qzv"
+
+		qiime diversity alpha-rarefaction \
+			--i-table "${qzaoutput2}rerun_alpha/table.qza" \
+			--i-phylogeny "${qzaoutput2}rerun_alpha/rooted-tree.qza" \
+			--p-max-depth $sampling_depth \
+			--m-metadata-file $metadata_filepath \
+			--o-visualization "${qzaoutput2}rerun_alpha/alpha-rarefaction.qzv"
+		
+		talkative "${GREEN}    Finished alpha rarefaction and group significance${NC}"
+	done
+fi
+
+if [ "$rerun_beta_analysis" = true ]; then
+	for group in "${rerun_group[@]}"
+	do
+		for fl in ${qzaoutput}*/rep-seqs.qza
+		do
+			#Defining qzaoutput2
+			qzaoutput2=${fl%"rep-seqs.qza"}
+			
+			talkative "group = $group"
+			talkative "fl = $fl"
+			talkative "qzaoutput2 = $qzaoutput2"
+			
+			mkdir "${qzaoutput2}beta_div_reruns" 2> /dev/null
+			return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1
+			echo $(return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1)
+			mkdir "${qzaoutput2}beta_div_reruns/rerun_${group}"
+			
+			echolog "Starting ${CYAN}beta-group-significance${NC} for ${group}"
+			
+			#For unweighted
+			qiime diversity beta-group-significance \
+				--i-distance-matrix "${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $rerun_group \
+				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/unweighted-unifrac-beta-significance.qzv" \
+				--p-pairwise
+			
+			#For weighted
+			qiime diversity beta-group-significance \
+				--i-distance-matrix "${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $rerun_group \
+				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/weighted-unifrac-beta-significance.qzv" \
+				--p-pairwise
+			
+			echolog "${GREEN}    Finished beta diversity analysis for $group${NC}"
+		done
+	done
+fi
+
+#<<<<<<<<<<<<<<<<<<<<END RERUN BLOCK<<<<<<<<<<<<<<<<<<<<
+
+
 #>>>>>>>>>>>>>>>>>>>>>>>>>>ANCOM>>>>>>>>>>>>>>>>>>>>>>>
 
 if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$make_collapsed_table" = true && "$sklearn_done" = true ) ]] ; then
@@ -1393,36 +1390,40 @@ if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$make_collapsed_ta
 					
 				echolog "${GREEN}    Finished feature table filtering${NC}"
 				echolog "${CYAN}qiime taxa collapse${NC} starting"
-			
-				qiime taxa collapse \
-					--i-table "${qzaoutput2}ancom_outputs/${group}/filtered_table_level_${collapse_taxa_to_level}.qza" \
-					--i-taxonomy "${qzaoutput2}taxonomy.qza" \
-					--p-level $collapse_taxa_to_level \
-					--o-collapsed-table "${qzaoutput2}ancom_outputs/${group}/taxa_level_${collapse_taxa_to_level}.qza"
 				
-				echolog "${GREEN}    Finished taxa collapsing${NC}"
-				echolog "Starting ${CYAN}qiime composition add-pseudocount${NC}"
-				
-				qiime composition add-pseudocount \
-					--i-table "${qzaoutput2}ancom_outputs/${group}/taxa_level_${collapse_taxa_to_level}.qza" \
-					--o-composition-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo_level_${collapse_taxa_to_level}.qza"
-				
-				echolog "${GREEN}    Finished pseudocount adding${NC}"
-				
+				for element in "${collapse_taxa_to_level[@]}"
+				do
+					qiime taxa collapse \
+						--i-table "${qzaoutput2}ancom_outputs/${group}/filtered_table_level_${collapse_taxa_to_level}.qza" \
+						--i-taxonomy "${qzaoutput2}taxonomy.qza" \
+						--p-level $element \
+						--o-collapsed-table "${qzaoutput2}ancom_outputs/${group}/taxa_level_${collapse_taxa_to_level}.qza"
+					
+					echolog "${GREEN}    Finished taxa collapsing to level ${element}${NC}"
+					echolog "Starting ${CYAN}qiime composition add-pseudocount${NC}"
+					
+					qiime composition add-pseudocount \
+						--i-table "${qzaoutput2}ancom_outputs/${group}/taxa_level_${collapse_taxa_to_level}.qza" \
+						--o-composition-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo_level_${collapse_taxa_to_level}.qza"
+					
+					echolog "${GREEN}    Finished pseudocount adding for level ${element}${NC}"
+				done
 			fi
 			
-			echolog "Starting ${CYAN}qiime composition ancom${NC}"
+			for element in "${collapse_taxa_to_level[@]}"
+			do
+				echolog "Starting ${CYAN}qiime composition ancom${NC}"
+				
+				qiime composition ancom \
+					--i-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo_level_${collapse_taxa_to_level}.qza" \
+					--m-metadata-file $metadata_filepath \
+					--m-metadata-column $group_to_compare \
+					--o-visualization "${qzaoutput2}ancom_outputs/${group}/ancom_${group}_level_${collapse_taxa_to_level}.qzv"
+				
+				cp "${qzaoutput2}ancom_outputs/${group}/ancom_${group}_level_${collapse_taxa_to_level}.qzv" "${qzaoutput2}ancom_outputs/all_qzvfiles/"
 			
-			qiime composition ancom \
-				--i-table "${qzaoutput2}ancom_outputs/${group}/added_pseudo_level_${collapse_taxa_to_level}.qza" \
-				--m-metadata-file $metadata_filepath \
-				--m-metadata-column $group_to_compare \
-				--o-visualization "${qzaoutput2}ancom_outputs/${group}/ancom_${group}_level_${collapse_taxa_to_level}.qzv"
-			
-			cp "${qzaoutput2}ancom_outputs/${group}/ancom_${group}_level_${collapse_taxa_to_level}.qzv" "${qzaoutput2}ancom_outputs/all_qzvfiles/"
-		
-			echolog "${GREEN}    Finished ancom composition and the ancom block for ${group}${NC}"
-
+				echolog "${GREEN}    Finished ancom composition and the ancom block for ${group}${NC}"
+			done
 		done
 	done
 
