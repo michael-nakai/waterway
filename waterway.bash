@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.2"
+version="2.3"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -353,41 +353,67 @@ if [ ! -f $analysis_path ]; then
 	
 	touch optional_analyses.txt
 	
-	echo -e "#Phyloseq and alpha rarefaction" >> optional_analyses.txt
+	echo -e "### Phyloseq and alpha rarefaction" >> optional_analyses.txt
 	echo -e "rerun_phylo_and_alpha=false\n" >> optional_analyses.txt
 	
-	echo -e "#Beta analysis for categorical variables" >> optional_analyses.txt
+	echo -e "### Beta analysis for categorical variables" >> optional_analyses.txt
 	echo -e "rerun_beta_analysis=false" >> optional_analyses.txt
 	echo -e "rerun_group=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
 	
-	echo -e "#Beta analysis for continuous variables" >> optional_analyses.txt
+	echo -e "### Beta analysis for continuous variables" >> optional_analyses.txt
 	echo -e "run_beta_continuous=false" >> optional_analyses.txt
 	echo -e "continuous_group=('Group1' 'Group2' 'etc...')" >> optional_analyses.txt
 	echo -e "correlation_method='spearman'\n" >> optional_analyses.txt
 	
-	echo -e "#Ancom analysis" >> optional_analyses.txt
+	echo -e "### Ancom analysis" >> optional_analyses.txt
 	echo -e "run_ancom=false" >> optional_analyses.txt
 	echo -e "make_collapsed_table=false" >> optional_analyses.txt
 	echo -e "collapse_taxa_to_level=(2 6)" >> optional_analyses.txt
 	echo -e "group_to_compare=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
 	
-	echo -e "#Picrust2 Analysis (Picrust2 must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
+	echo -e "### Picrust2 Analysis (Picrust2 must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
 	echo -e "run_picrust=false" >> optional_analyses.txt
 	echo -e "hsp_method=mp #Default value, shouldnt need to change" >> optional_analyses.txt
 	echo -e "max_nsti=2 #Default value, shouldnt need to change\n" >> optional_analyses.txt
 	
-	echo -e "#PCoA Biplot Analysis" >> optional_analyses.txt
+	echo -e "### PCoA Biplot Analysis" >> optional_analyses.txt
 	echo -e "run_biplot=false" >> optional_analyses.txt
 	echo -e "number_of_dimensions=20\n" >> optional_analyses.txt
 	
-	echo -e "#DEICODE analysis (DEICODE must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
+	echo -e "### DEICODE analysis (DEICODE must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
 	echo -e "run_deicode=false" >> optional_analyses.txt
 	echo -e "num_of_features=8" >> optional_analyses.txt
 	echo -e "min_feature_count=2" >> optional_analyses.txt
 	echo -e "min_sample_count=100" >> optional_analyses.txt
 	echo -e "beta_rerun_group=('Group1' 'Group2' 'etc...') #Put the metadata columns here\n" >> optional_analyses.txt
 	
-	echo -e "#Gneiss gradient-clustering analyses" >> optional_analyses.txt
+	echo -e "### Sample classifier and prediction (categorical)" >> optional_analyses.txt
+	echo -e "run_classify_samples_categorical=false" >> optional_analyses.txt
+	echo -e "metadata_column=('Group1' 'Group2' 'etc...') #Put the metadata columns here" >> optional_analyses.txt
+	echo -e "heatmap_num=30" >> optional_analyses.txt
+	echo -e "retraining_samples_known_value=true" >> optional_analyses.txt
+	echo -e "NCV=true" >> optional_analyses.txt
+	echo -e "random_seed=123 #Do not change unless needed" >> optional_analyses.txt
+	echo -e "estimator_method='RandomForestClassifier' #Do not change unless needed" >> optional_analyses.txt
+	echo -e "k_cross_validations=5 #Do not change unless needed" >> optional_analyses.txt
+	echo -e "test_proportion=0.2 #Do not change unless needed" >> optional_analyses.txt
+	echo -e "number_of_trees_to_grow=100 #Do not change unless needed" >> optional_analyses.txt
+	echo -e "palette='sirocco' #Do not change unless needed\n" >> optional_analyses.txt
+	
+	echo -e "### Sample classifier and prediction (continuous)" >> optional_analyses.txt
+	echo -e "run_classify_samples_continuous=false" >> optional_analyses.txt
+	echo -e "metadata_column_continuous=('Group1' 'Group2' 'etc...') #Put the metadata columns here" >> optional_analyses.txt
+	echo -e "heatmap_num_continuous=30" >> optional_analyses.txt
+	echo -e "retraining_samples_known_value_continuous=true" >> optional_analyses.txt
+	echo -e "NCV_continuous=true" >> optional_analyses.txt
+	echo -e "estimator_method_continuous='RandomForestRegressor' #Do not change unless needed" >> optional_analyses.txt
+	echo -e "k_cross_validations_continuous=5 #Do not change unless needed" >> optional_analyses.txt
+	echo -e "random_seed_continuous=123 #Do not change unless needed" >> optional_analyses.txt
+	echo -e "test_proportion_continuous=0.2 #Do not change unless needed" >> optional_analyses.txt
+	echo -e "number_of_trees_to_grow_continuous=100 #Do not change unless needed" >> optional_analyses.txt
+	echo -e "palette_continuous='sirocco' #Do not change unless needed\n" >> optional_analyses.txt
+	
+	echo -e "### Gneiss gradient-clustering analyses" >> optional_analyses.txt
 	echo -e "run_gneiss=false" >> optional_analyses.txt
 	echo -e "use_correlation_clustering=true" >> optional_analyses.txt
 	echo -e "use_gradient_clustering=false" >> optional_analyses.txt
@@ -1415,7 +1441,7 @@ if [ "$rerun_beta_analysis" = true ]; then
 				--o-visualization "${qzaoutput2}beta_div_reruns/rerun_${group}/weighted-unifrac-beta-significance.qzv" \
 				--p-pairwise
 			
-			echolog "${GREEN}    Finished beta diversity analysis for $group${NC}"
+			echolog "${GREEN}    Finished beta diversity analysis for ${group}${NC}"
 		done
 	done
 fi
@@ -1711,6 +1737,299 @@ fi
 
 
 #<<<<<<<<<<<<<<<<<<<<END DEICODE<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>START SAMPLE CLASSIFIER (CATEGORICAL)>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$sklearn_done" = true ]; then
+
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		# Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/categorical" 2> /dev/null
+		
+		for group in ${metadata_column[@]}
+		do
+			
+			echolog "Starting ${CYAN}sample-classifier classify-samples${NC} for ${BMAGENTA}${group}${NC}"
+			
+			qiime sample-classifier classify-samples \
+				--i-table "${qzaoutput2}table.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $group \
+				--p-test-size $test_proportion \
+				--p-cv $k_cross_validations \
+				--p-random-state $random_seed \
+				--p-n-estimators $number_of_trees_to_grow \
+				--p-optimize-feature-selection \
+				--p-parameter-tuning \
+				--p-palette $palette \
+				--p-missing-samples 'ignore' \
+				--output-dir "${qzaoutput2}supervised_learning_classifier/categorical/${group}"
+				
+			echolog "${GREEN}    Finished sample-classifier classify-samples${NC}"
+			echolog "Starting ${CYAN}summarization${NC} of output files"
+			
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/predictions.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/predictions.qzv"
+			
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/probabilities.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/probabilities.qzv"
+	
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/feature_importance.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/feature_importance.qzv"
+			
+			echolog "${GREEN}    Finished summarization${NC}"
+			echolog "Starting ${CYAN}feature filtering${NC} to isolate important features"
+			
+			qiime feature-table filter-features \
+				--i-table "${qzaoutput2}table.qza" \
+				--m-metadata-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/feature_importance.qza" \
+				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/categorical/${group}/important_feature_table.qza"
+			
+			echolog "${GREEN}    Finished important feature isolating${NC}"
+			echolog "Starting ${CYAN}heatmap generation${NC} to find the top ${BMAGENTA}${heatmap_num}${NC} most abundant features"
+			
+			qiime sample-classifier heatmap \
+				--i-table "${qzaoutput2}table.qza" \
+				--i-importance "${qzaoutput2}supervised_learning_classifier/categorical/${group}/feature_importance.qza" \
+				--m-sample-metadata-file $metadata_filepath \
+				--m-sample-metadata-column $group \
+				--p-group-samples \
+				--p-feature-count $heatmap_num \
+				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/categorical/${group}/important-feature-table-top-30.qza" \
+				--o-heatmap "${qzaoutput2}supervised_learning_classifier/categorical/${group}/important-feature-heatmap.qzv"
+				
+			echolog "${GREEN}    Finished heatmap generation${NC}"
+			echolog "Starting ${CYAN}sample-classifier predict-classification${NC}"
+				
+			qiime sample-classifier predict-classification \
+				--i-table "${qzaoutput2}table.qza" \
+				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/categorical/${group}/sample_estimator.qza" \
+				--o-predictions "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_predictions.qza" \
+				--o-probabilities "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_probabilities.qza"
+			
+			echolog "${GREEN}    Finished sample-classifier predict-classification${NC}"
+			
+			if [ "$retraining_samples_known_value" = true ]; then
+				echolog "Starting ${CYAN}confusion matrix generation${NC}"
+				
+				qiime sample-classifier confusion-matrix \
+					--i-predictions "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_predictions.qza" \
+					--i-probabilities "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_probabilities.qza" \
+					--m-truth-file $metadata_filepath \
+					--m-truth-column $group \
+					--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_confusion_matrix.qzv"
+				
+				echolog "${GREEN}    Finished confusion matrix generation${NC}"
+			fi
+			echolog "${GREEN}    Finished sample-classifier (categorical) for: ${group}${NC}"
+	done
+else
+	errorlog "${YELLOW}Either run_classify_samples_categorical is set to false, or taxonomic analyses${NC}"
+	errorlog "${YELLOW}have not been completed on the dataset. Classifier training${NC}"
+	errorlog "${YELLOW}will not proceed.${NC}"
+	errorlog ""
+fi
+
+#<<<<<<<<<<<<<<<<<<<<END SAMPLE CLASSIFIER (CATEGORICAL)<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>START SAMPLE CLASSIFIER (CONTINUOUS)>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false ] && [ "$sklearn_done" = true ]; then
+
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		# Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/continuous" 2> /dev/null
+		
+		for group in ${metadata_column_continuous[@]}
+		do
+			
+			echolog "Starting ${CYAN}sample-classifier regress-samples${NC} for ${BMAGENTA}${group}${NC}"
+			
+			qiime sample-classifier regress-samples \
+				--i-table "${qzaoutput2}table.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $group \
+				--p-test-size $test_proportion_continuous \
+				--p-cv $k_cross_validations_continuous \
+				--p-random-state $random_seed_continuous \
+				--p-n-estimators $number_of_trees_to_grow_continuous \
+				--p-palette $palette_continuous \
+				--p-missing-samples 'ignore' \
+				--output-dir "${qzaoutput2}supervised_learning_classifier/continuous/${group}"
+				
+			echolog "${GREEN}    Finished sample-classifier regress-samples${NC}"
+			echolog "Starting ${CYAN}summarization${NC} of output files"
+			
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/continuous/${group}/predictions.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/predictions.qzv"
+	
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/continuous/${group}/feature_importance.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/feature_importance.qzv"
+			
+			echolog "${GREEN}    Finished summarization${NC}"
+			echolog "Starting ${CYAN}feature filtering${NC} to isolate important features"
+			
+			qiime feature-table filter-features \
+				--i-table "${qzaoutput2}table.qza" \
+				--m-metadata-file "${qzaoutput2}supervised_learning_classifier/continuous/${group}/feature_importance.qza" \
+				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/continuous/${group}/important_feature_table.qza"
+			
+			echolog "${GREEN}    Finished important feature isolating${NC}"
+			echolog "Starting ${CYAN}heatmap generation${NC} to find the top ${BMAGENTA}${heatmap_num}${NC} most abundant features"
+			
+			qiime sample-classifier heatmap \
+				--i-table "${qzaoutput2}table.qza" \
+				--i-importance "${qzaoutput2}supervised_learning_classifier/continuous/${group}/feature_importance.qza" \
+				--m-sample-metadata-file $metadata_filepath \
+				--m-sample-metadata-column $group \
+				--p-group-samples \
+				--p-feature-count $heatmap_num \
+				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/continuous/${group}/important-features-top-30.qza" \
+				--o-heatmap "${qzaoutput2}supervised_learning_classifier/continuous/${group}/important-feature-heatmap.qzv"
+				
+			echolog "${GREEN}    Finished heatmap generation${NC}"
+			echolog "Starting ${CYAN}sample-classifier predict-classification${NC}"
+				
+			qiime sample-classifier predict-classification \
+				--i-table "${qzaoutput2}table.qza" \
+				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/continuous/${group}/sample_estimator.qza" \
+				--o-predictions "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_predictions.qza" \
+				--o-probabilities "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_probabilities.qza"
+			
+			echolog "${GREEN}    Finished sample-classifier predict-classification${NC}"
+			
+			if [ "$retraining_samples_known_value_continuous" = true ]; then
+				echolog "Starting ${CYAN}confusion matrix generation${NC}"
+				
+				qiime sample-classifier confusion-matrix \
+					--i-predictions "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_predictions.qza" \
+					--i-probabilities "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_probabilities.qza" \
+					--m-truth-file $metadata_filepath \
+					--m-truth-column $group \
+					--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_confusion_matrix.qzv"
+				
+				echolog "${GREEN}    Finished confusion matrix generation${NC}"
+			fi
+			echolog "${GREEN}    Finished sample-classifier (continuous) for: ${group}${NC}"
+	done
+else
+	errorlog "${YELLOW}Either run_classify_samples_continuous is set to false, or taxonomic analyses${NC}"
+	errorlog "${YELLOW}have not been completed on the dataset. Classifier training${NC}"
+	errorlog "${YELLOW}will not proceed.${NC}"
+	errorlog ""
+fi
+
+#<<<<<<<<<<<<<<<<<<<<END SAMPLE CLASSIFIER (CONTINUOUS)<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>START SAMPLE CLASSIFIER (NESTED CROSS VALIDATION)>>>>>>>>>>>>>>>>>>>>>>>
+
+# NCV for categorical data
+if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = true ] && [ "$sklearn_done" = true ]; then
+
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		# Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical" 2> /dev/null
+		
+		for group in ${metadata_column_continuous[@]}
+		do
+			
+			mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}" 2> /dev/null
+			
+			echolog "Starting ${CYAN}NCV classification${NC} for ${BMAGENTA}${group}${NC}"
+			
+			qiime sample-classifier classify-samples-ncv \
+				--i-table "${qzaoutput2}table.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $group \
+				--p-estimator $estimator_method \
+				--p-n-estimators $number_of_trees_to_grow \
+				--p-random-state $random_seed \
+				--p-missing-samples 'ignore' \
+				--o-predictions "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-predictions-ncv.qza" \
+				--o-probabilities "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-probabilities-ncv.qza" \
+				--o-feature-importance "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-importance-ncv.qza"
+			
+			echolog "${GREEN}    Finished NCV sample classification${NC}"
+			echolog "Starting ${CYAN}confusion-matrix generation${NC} to calculate classifier accuracy"
+			
+			qiime sample-classifier confusion-matrix \
+				--i-predictions "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-predictions-ncv.qza" \
+				--i-probabilities "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-probabilities-ncv.qza" \
+				--m-truth-file $metadata_filepath \
+				--m-truth-column $group \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/ncv_confusion_matrix.qzv"
+				
+			echolog "${GREEN}    Finished confusion matrix generation${NC}"
+			
+		done
+	done
+fi
+
+# NCV for continuous data
+if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = true ] && [ "$sklearn_done" = true ]; then
+
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		# Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous" 2> /dev/null
+		
+		for group in ${metadata_column_continuous[@]}
+		do
+			
+			mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}" 2> /dev/null
+			
+			echolog "Starting ${CYAN}NCV regressor classification${NC} for ${BMAGENTA}${group}${NC}"
+			
+			qiime sample-classifier regress-samples-ncv \
+				--i-table "${qzaoutput2}table.qza" \
+				--m-metadata-file $metadata_filepath \
+				--m-metadata-column $group \
+				--p-estimator $estimator_method_continuous \
+				--p-n-estimators $number_of_trees_to_grow_continuous \
+				--p-random-state $random_seed_continuous \
+				--o-predictions "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-predictions-ncv.qza" \
+				--o-feature-importance "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-importance-ncv.qza"
+			
+			echolog "${GREEN}    Finished regressor classification${NC}"
+			echolog "Starting ${CYAN}scatterplot generation${NC} to calculate regressor accuracy"
+			
+			qiime sample-classifier scatterplot \
+				--i-predictions "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-predictions-ncv.qza" \
+				--m-truth-file $metadata_filepath \
+				--m-truth-column ${group} \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-ecam-scatter.qzv"
+			
+			echolog "${GREEN}    Finished scatterplot generation${NC}"
+			
+		done
+	done
+fi
+
+#<<<<<<<<<<<<<<<<<<<<END SAMPLE CLASSIFIER (NCV)<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
 #>>>>>>>>>>>>>>>>>>>>START PICRUST2>>>>>>>>>>>>>>>>>>>>>>>
 
