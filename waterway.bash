@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.3"
+version="2.3.1"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -1773,6 +1773,10 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 			echolog "${GREEN}    Finished sample-classifier classify-samples${NC}"
 			echolog "Starting ${CYAN}summarization${NC} of output files"
 			
+			qiime sample-classifier summarize \
+				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/categorical/${group}/sample_estimator.qza"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/sample_estimator_summary.qzv"
+			
 			qiime metadata tabulate \
 				--m-input-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/predictions.qza" \
 				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/predictions.qzv"
@@ -1830,6 +1834,7 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 				echolog "${GREEN}    Finished confusion matrix generation${NC}"
 			fi
 			echolog "${GREEN}    Finished sample-classifier (categorical) for: ${group}${NC}"
+		done
 	done
 else
 	errorlog "${YELLOW}Either run_classify_samples_categorical is set to false, or taxonomic analyses${NC}"
@@ -1872,6 +1877,10 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 				
 			echolog "${GREEN}    Finished sample-classifier regress-samples${NC}"
 			echolog "Starting ${CYAN}summarization${NC} of output files"
+			
+			qiime sample-classifier summarize \
+				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/continuous/${group}/sample_estimator.qza"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/sample_estimator_summary.qzv"
 			
 			qiime metadata tabulate \
 				--m-input-file "${qzaoutput2}supervised_learning_classifier/continuous/${group}/predictions.qza" \
@@ -1926,6 +1935,7 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 				echolog "${GREEN}    Finished confusion matrix generation${NC}"
 			fi
 			echolog "${GREEN}    Finished sample-classifier (continuous) for: ${group}${NC}"
+		done
 	done
 else
 	errorlog "${YELLOW}Either run_classify_samples_continuous is set to false, or taxonomic analyses${NC}"
@@ -1950,7 +1960,7 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = true ] && [ "$sk
 		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
 		mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical" 2> /dev/null
 		
-		for group in ${metadata_column_continuous[@]}
+		for group in ${metadata_column[@]}
 		do
 			
 			mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}" 2> /dev/null
@@ -1980,6 +1990,21 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = true ] && [ "$sk
 				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/ncv_confusion_matrix.qzv"
 				
 			echolog "${GREEN}    Finished confusion matrix generation${NC}"
+			echolog "Starting ${CYAN}summarization${NC} of output files"
+			
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-probabilities-ncv.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-probabilities-ncv.qzv"
+			
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-predictions-ncv.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-predictions-ncv.qzv"
+			
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-importance-ncv.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Categorical/${group}/${group}-importance-ncv.qzv"
+			
+			echolog "${GREEN}    Finished summarization${NC}"
 			
 		done
 	done
@@ -2024,6 +2049,17 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = true ]
 				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-ecam-scatter.qzv"
 			
 			echolog "${GREEN}    Finished scatterplot generation${NC}"
+			echolog "Starting ${CYAN}summarization${NC} of output files"
+			
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-predictions-ncv.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-predictions-ncv.qzv"
+			
+			qiime metadata tabulate \
+				--m-input-file "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-importance-ncv.qza" \
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-importance-ncv.qzv"
+			
+			echolog "${GREEN}    Finished summarization${NC}"
 			
 		done
 	done
