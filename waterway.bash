@@ -1286,8 +1286,21 @@ if [ "$divanalysis_done" = false ]; then
 				--p-iterations 20 \
 				--o-visualization "${qzaoutput2}beta-rarefactions/${thing}.qzv"
 		done
-		
 		echolog "${GREEN}    Finished beta-rarefaction${NC}"
+		
+		betaDistanceMatrices=('unweighted' 'weighted')
+		for distance in $betaDistanceMatrices
+		do
+			echolog "Starting ${CYAN}bioenv diversity analysis${NC} for ${BMAGENTA}${distance}_unifrac${NC}"
+			
+			qiime diversity bioenv \
+				--i-distance-matrix "${qzaoutput2}core-metrics-results/${distance}_unifrac_distance_matrix.qza" \
+				--m-metadata-file $metadata_filepath \
+				--o-visualization "${qzaoutput2}core-metrics-results/${distance}_unifrac_bioenv.qzv"
+				
+		done
+		
+		echolog "${GREEN}    Finished bioenv analysis${NC}"
 		echolog "Starting ${CYAN}beta-group-significance${NC}"
 		
 		qiime diversity beta-group-significance \
