@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.3.1"
+version="2.4"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -1268,6 +1268,26 @@ if [ "$divanalysis_done" = false ]; then
 			--o-visualization "${qzaoutput2}alpha-rarefaction.qzv"
 		
 		echolog "${GREEN}    Finished alpha-group-significance and alpha-rarefaction${NC}"
+		
+		mkdir "${qzaoutput2}beta-rarefactions"
+		
+		metric_list=('euclidean' 'correlation' 'weighted_normalized_unifrac' 'seuclidean' 'braycurtis' 'unweighted_unifrac' 'sqeuclidean' 'generalized_unifrac' 'aitchison' 'matching' 'weighted_unifrac' 'jaccard')
+		for thing in ${metric_list[@]}
+		do
+			echolog "Starting ${CYAN}beta-rarefaction${NC} type: ${BMAGENTA}${thing}${NC}"
+			
+			qiime diversity beta-rarefaction \
+				--i-table "${qzaoutput2}table.qza" \
+				--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
+				--p-metric $thing \
+				--p-clustering-method 'upgma'
+				--m-metadata-file $metadata_filepath \
+				--p-sampling-depth $sampling_depth \
+				--p-iterations 20
+				--o-visualization "${qzaoutput2}beta-rarefactions/${thing}.qzv"
+		done
+		
+		echolog "${GREEN}    Finished beta-rarefaction${NC}"
 		echolog "Starting ${CYAN}beta-group-significance${NC}"
 		
 		qiime diversity beta-group-significance \
@@ -1775,19 +1795,19 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 			
 			qiime sample-classifier summarize \
 				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/categorical/${group}/sample_estimator.qza"
-				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/sample_estimator_summary.qzv"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-sample_estimator_summary.qzv"
 			
 			qiime metadata tabulate \
 				--m-input-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/predictions.qza" \
-				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/predictions.qzv"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-predictions.qzv"
 			
 			qiime metadata tabulate \
 				--m-input-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/probabilities.qza" \
-				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/probabilities.qzv"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-probabilities.qzv"
 	
 			qiime metadata tabulate \
 				--m-input-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/feature_importance.qza" \
-				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/feature_importance.qzv"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-feature_importance.qzv"
 			
 			echolog "${GREEN}    Finished summarization${NC}"
 			echolog "Starting ${CYAN}feature filtering${NC} to isolate important features"
@@ -1795,7 +1815,7 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 			qiime feature-table filter-features \
 				--i-table "${qzaoutput2}table.qza" \
 				--m-metadata-file "${qzaoutput2}supervised_learning_classifier/categorical/${group}/feature_importance.qza" \
-				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/categorical/${group}/important_feature_table.qza"
+				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-important_feature_table.qza"
 			
 			echolog "${GREEN}    Finished important feature isolating${NC}"
 			echolog "Starting ${CYAN}heatmap generation${NC} to find the top ${BMAGENTA}${heatmap_num}${NC} most abundant features"
@@ -1808,7 +1828,7 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 				--p-group-samples \
 				--p-feature-count $heatmap_num \
 				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/categorical/${group}/important-feature-table-top-30.qza" \
-				--o-heatmap "${qzaoutput2}supervised_learning_classifier/categorical/${group}/important-feature-heatmap.qzv"
+				--o-heatmap "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-important-feature-heatmap.qzv"
 				
 			echolog "${GREEN}    Finished heatmap generation${NC}"
 			echolog "Starting ${CYAN}sample-classifier predict-classification${NC}"
@@ -1816,8 +1836,8 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 			qiime sample-classifier predict-classification \
 				--i-table "${qzaoutput2}table.qza" \
 				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/categorical/${group}/sample_estimator.qza" \
-				--o-predictions "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_predictions.qza" \
-				--o-probabilities "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_probabilities.qza"
+				--o-predictions "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-new_predictions.qza" \
+				--o-probabilities "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-new_probabilities.qza"
 			
 			echolog "${GREEN}    Finished sample-classifier predict-classification${NC}"
 			
@@ -1825,11 +1845,11 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 				echolog "Starting ${CYAN}confusion matrix generation${NC}"
 				
 				qiime sample-classifier confusion-matrix \
-					--i-predictions "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_predictions.qza" \
-					--i-probabilities "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_probabilities.qza" \
+					--i-predictions "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-new_predictions.qza" \
+					--i-probabilities "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-new_probabilities.qza" \
 					--m-truth-file $metadata_filepath \
 					--m-truth-column $group \
-					--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/new_confusion_matrix.qzv"
+					--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-new_confusion_matrix.qzv"
 				
 				echolog "${GREEN}    Finished confusion matrix generation${NC}"
 			fi
@@ -1880,15 +1900,15 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 			
 			qiime sample-classifier summarize \
 				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/continuous/${group}/sample_estimator.qza"
-				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/sample_estimator_summary.qzv"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-sample_estimator_summary.qzv"
 			
 			qiime metadata tabulate \
 				--m-input-file "${qzaoutput2}supervised_learning_classifier/continuous/${group}/predictions.qza" \
-				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/predictions.qzv"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-predictions.qzv"
 	
 			qiime metadata tabulate \
 				--m-input-file "${qzaoutput2}supervised_learning_classifier/continuous/${group}/feature_importance.qza" \
-				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/feature_importance.qzv"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-feature_importance.qzv"
 			
 			echolog "${GREEN}    Finished summarization${NC}"
 			echolog "Starting ${CYAN}feature filtering${NC} to isolate important features"
@@ -1909,7 +1929,7 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 				--p-group-samples \
 				--p-feature-count $heatmap_num \
 				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/continuous/${group}/important-features-top-30.qza" \
-				--o-heatmap "${qzaoutput2}supervised_learning_classifier/continuous/${group}/important-feature-heatmap.qzv"
+				--o-heatmap "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-important-feature-heatmap.qzv"
 				
 			echolog "${GREEN}    Finished heatmap generation${NC}"
 			echolog "Starting ${CYAN}sample-classifier predict-classification${NC}"
@@ -1917,8 +1937,8 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 			qiime sample-classifier predict-classification \
 				--i-table "${qzaoutput2}table.qza" \
 				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/continuous/${group}/sample_estimator.qza" \
-				--o-predictions "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_predictions.qza" \
-				--o-probabilities "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_probabilities.qza"
+				--o-predictions "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-new_predictions.qza" \
+				--o-probabilities "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-new_probabilities.qza"
 			
 			echolog "${GREEN}    Finished sample-classifier predict-classification${NC}"
 			
@@ -1926,11 +1946,11 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 				echolog "Starting ${CYAN}confusion matrix generation${NC}"
 				
 				qiime sample-classifier confusion-matrix \
-					--i-predictions "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_predictions.qza" \
-					--i-probabilities "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_probabilities.qza" \
+					--i-predictions "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-new_predictions.qza" \
+					--i-probabilities "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-new_probabilities.qza" \
 					--m-truth-file $metadata_filepath \
 					--m-truth-column $group \
-					--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/new_confusion_matrix.qzv"
+					--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-new_confusion_matrix.qzv"
 				
 				echolog "${GREEN}    Finished confusion matrix generation${NC}"
 			fi
@@ -2046,7 +2066,7 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = true ]
 				--i-predictions "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-predictions-ncv.qza" \
 				--m-truth-file $metadata_filepath \
 				--m-truth-column ${group} \
-				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-ecam-scatter.qzv"
+				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-scatter.qzv"
 			
 			echolog "${GREEN}    Finished scatterplot generation${NC}"
 			echolog "Starting ${CYAN}summarization${NC} of output files"
