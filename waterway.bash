@@ -387,6 +387,9 @@ if [ ! -f $analysis_path ]; then
 	echo -e "min_sample_count=100" >> optional_analyses.txt
 	echo -e "beta_rerun_group=('Group1' 'Group2' 'etc...') #Put the metadata columns here\n" >> optional_analyses.txt
 	
+	echo -e "### Bioenv analysis (can take a LONG time with many metadata variables)" >> optional_analyses.txt
+	echo -e "run_bioenv=false" >> optional_analyses.txt
+	
 	echo -e "### Sample classifier and prediction (categorical)" >> optional_analyses.txt
 	echo -e "run_classify_samples_categorical=false" >> optional_analyses.txt
 	echo -e "metadata_column=('Group1' 'Group2' 'etc...') #Put the metadata columns here" >> optional_analyses.txt
@@ -1287,20 +1290,6 @@ if [ "$divanalysis_done" = false ]; then
 				--o-visualization "${qzaoutput2}beta-rarefactions/${thing}.qzv"
 		done
 		echolog "${GREEN}    Finished beta-rarefaction${NC}"
-		
-		betaDistanceMatrices=('unweighted' 'weighted')
-		for distance in $betaDistanceMatrices
-		do
-			echolog "Starting ${CYAN}bioenv diversity analysis${NC} for ${BMAGENTA}${distance}_unifrac${NC}"
-			
-			qiime diversity bioenv \
-				--i-distance-matrix "${qzaoutput2}core-metrics-results/${distance}_unifrac_distance_matrix.qza" \
-				--m-metadata-file $metadata_filepath \
-				--o-visualization "${qzaoutput2}core-metrics-results/${distance}_unifrac_bioenv.qzv"
-				
-		done
-		
-		echolog "${GREEN}    Finished bioenv analysis${NC}"
 		echolog "Starting ${CYAN}beta-group-significance${NC}"
 		
 		qiime diversity beta-group-significance \
@@ -2253,6 +2242,32 @@ fi
 
 
 #<<<<<<<<<<<<<<<<<<<<END GNEISS GRADIENT CLUSTERING<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>>>>>>>START BIOENV>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$run_bioenv" = true ] && [ "$sklearn_done" = true ]; then
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+		#Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+		betaDistanceMatrices=('unweighted' 'weighted')
+		for distance in $betaDistanceMatrices
+		do
+			echolog "Starting ${CYAN}bioenv diversity analysis${NC} for ${BMAGENTA}${distance}_unifrac${NC}"
+			
+			qiime diversity bioenv \
+				--i-distance-matrix "${qzaoutput2}core-metrics-results/${distance}_unifrac_distance_matrix.qza" \
+				--m-metadata-file $metadata_filepath \
+				--o-visualization "${qzaoutput2}core-metrics-results/${distance}_unifrac_bioenv.qzv" \
+				--verbose
+				
+		done
+		echolog "${GREEN}    Finished bioenv analysis${NC} for ${BMAGENTA}${qzaoutput2}${NC}"
+	done
+fi
+
+
+#<<<<<<<<<<<<<<<<<<<<END BIOENV<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
 #>>>>>>>>>>>>>>>>>>>>>>>>>>SORT AND OUTPUT>>>>>>>>>>>>>>>>>>>>>>>
 
