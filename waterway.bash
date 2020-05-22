@@ -215,7 +215,7 @@ do
 	fi
 done
 
-#If help was set, show help and exit
+# If help was set, show help and exit
 if [[ "$hlp" = true ]] ; then
 	echo ""
 	echo "DESCRIPTION"
@@ -239,13 +239,13 @@ if [[ "$hlp" = true ]] ; then
 	echo -e "-f\tShow the exact list of functions used in this script and their output files"
 	echo -e "-c\tTrain a greengenes 13_5 99% coverage otu classifier."
 	echo -e "-r\tReplaces underscores with hyphens from filenames that match a pattern that includes underscores to replace."
-	echo -e "-F\t Filters the table.qza and rep-seqs.qza by metadata files located in metadata/filter_inputs/"
+	echo -e "-F\tFilters the table.qza and rep-seqs.qza by metadata files located in metadata/filter_inputs/"
 	echo -e "-h\tShow this help dialogue"
 	echo ""
 	exit 0
 fi
 
-#If show_functions was set, show the sequence of functions as below:
+# If show_functions was set, show the sequence of functions as below:
 if [[ "$show_functions" = true ]] ; then
 	echo -e ""
 	echo -e "Functions used in this script:"
@@ -282,7 +282,7 @@ if [[ "$show_functions" = true ]] ; then
 	exit 0
 fi
 
-#Install picrust and deicode here if the install options were added
+# Install picrust and deicode here if the install options were added
 if [[ "$install-deicode" = true ]] ; then
 	exitnow=true
 	conda install -c conda-forge deicode
@@ -300,7 +300,7 @@ if [[ "$do_fastqc" = true ]] ; then
 	multiqc ${projpath}fastq_reports/*
 fi
 
-#See if configs exist
+# See if configs exist
 if [ ! -f $srcpath ]; then
 	exitnow=true
 	echo -e ""
@@ -428,17 +428,17 @@ if [ "$exitnow" = true ]; then
 	exit 0
 fi
 
-#Updates the analysis file from the old version (changes variable names)
+# Updates the analysis file from the old version (changes variable names)
 sed -i -r 's+run_ancom_composition+make_collapsed_table+g' $analysis_path 2> /dev/null 
 
-#Source the files
+# Source the files
 source $srcpath 2> /dev/null
 source $analysis_path 2> /dev/null
 
 demuxpairedendpath=${qzaoutput}imported_seqs.qza
 
-#Putting in flexibility in filepath inputs for projpath, filepath, and qzaoutput
-#see if last char in filepath is '/', and if it is, trim it
+# Putting in flexibility in filepath inputs for projpath, filepath, and qzaoutput
+# see if last char in filepath is '/', and if it is, trim it
 str=$filepath
 i=$((${#str}-1)) 2> /dev/null
 j=${str:$i:1} 2> /dev/null
@@ -450,7 +450,7 @@ filepath=${str}
 temparray=($projpath $qzaoutput)
 fuck=1
 for e in ${temparray[@]}; do
-	#see if last char in e is '/', and if not, add it
+	# see if last char in e is '/', and if not, add it
 	str=$e
 	i=$((${#str}-1)) 2> /dev/null
 	j=${str:$i:1} 2> /dev/null
@@ -489,7 +489,7 @@ fi
 #<<<<<<<<<<<<<<<<<<<<END LOG BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #>>>>>>>>>>>>>>>>>>>>START MANIFEST BLOCK>>>>>>>>>>>>>>>>>>>>
-#if -M was set, source config.txt and make a manifest file
+# if -M was set, source config.txt and make a manifest file
 if [[ "$make_manifest" = true ]] ; then
 	# Get list of R1/R2 files
 	R1_list=(${filepath}/*${Fpattern}*fastq.gz)
@@ -527,7 +527,7 @@ if [[ "$filter" = true ]] ; then
 	
 	metadata_to_filter="${metadata_filepath}/filter_inputs"
 	
-	#Check if the metadata to filter folder was made yet
+	# Check if the metadata to filter folder was made yet
 	if [ ! -d "${metadata_to_filter}" ]; then
 	
 		mkdir $metadata_to_filter
@@ -551,14 +551,14 @@ if [[ "$filter" = true ]] ; then
 	for repqza in ${qzaoutput}*/rep-seqs.qza
 	do
 	
-		#Defining qzaoutput2
+		# Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
 		
-		#Find the table/repseqs
+		# Find the table/repseqs
 		input="${qzaoutput2}table.qza"
 		repinput="${qzaoutput2}rep-seqs.qza"
 		
-		#Make the folders for tables/repseqs
+		# Make the folders for tables/repseqs
 		mkdir "${qzaoutput2}/tables" 2> /dev/null
 		mkdir "${qzaoutput2}/rep-seqs" 2> /dev/null
 		
@@ -590,7 +590,7 @@ fi
 #>>>>>>>>>>>>>>>>>>>>START RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
 if [[ "$rename_files" = true ]] ; then
 
-	#Check if patterns_to_rename.txt exists. If not, make it and exit.
+	# Check if patterns_to_rename.txt exists. If not, make it and exit.
 	if [ ! -f $rename_path ]; then
 		echo -e ""
 		echo -e "A ${BMAGENTA}patterns_to_rename.txt${NC} file will be made. Please include any"
@@ -646,7 +646,7 @@ fi
 #>>>>>>>>>>>>>>>>>>>>END RENAME BLOCK>>>>>>>>>>>>>>>>>>>>
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>TESTING BLOCK>>>>>>>>>>>>>>>>>>>>>>>
-#Figuring out where in the process we got to
+# Figuring out where in the process we got to
 import_done=false
 importvis_done=false
 dada2_done=false
@@ -656,19 +656,19 @@ sklearn_done=false
 
 echolog ""
 
-#Testing to see if import is done
+# Testing to see if import is done
 if test -f "${qzaoutput}imported_seqs.qza"; then
 	import_done=true
 	echolog "${GREEN}Previously completed: Import step${NC}"
 fi
 
-#Testing to see if the import visualization is done
+# Testing to see if the import visualization is done
 if test -f "${qzaoutput}imported_seqs.qzv"; then
 	importvis_done=true
 	echolog "${GREEN}Previously completed: Import visualization step${NC}"
 fi
 
-#Testing to see if the Dada2 step has outputed a table or NoOutput.txt per combination
+# Testing to see if the Dada2 step has outputed a table or NoOutput.txt per combination
 if [ "$importvis_done" = true ]; then
 	i=0
 	filecount=0
@@ -689,7 +689,7 @@ if [ "$importvis_done" = true ]; then
 	fi
 fi
 
-#Testing to see if the diversity analysis step has outputted the rooted tree per combination
+# Testing to see if the diversity analysis step has outputted the rooted tree per combination
 if [ "$dada2_done" = true ]; then
 	i=0
 	filecount=0
@@ -710,7 +710,7 @@ if [ "$dada2_done" = true ]; then
 	fi
 fi
 
-#Testing to see if the diversity analysis step has outputted the alpha_rarefaction.qzv per combination
+# Testing to see if the diversity analysis step has outputted the alpha_rarefaction.qzv per combination
 if [ "$tree_done" = true ]; then
 	i=0
 	filecount=0
@@ -731,7 +731,7 @@ if [ "$tree_done" = true ]; then
 	fi
 fi
 
-#Testing to see if the sklearn step outputted taxa-bar-plots.qzv per folder
+# Testing to see if the sklearn step outputted taxa-bar-plots.qzv per folder
 if [ "$divanalysis_done" = true ]; then
 	i=0
 	filecount=0
@@ -1280,10 +1280,10 @@ if [ "$divanalysis_done" = false ]; then
 				--i-table "${qzaoutput2}table.qza" \
 				--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
 				--p-metric $thing \
-				--p-clustering-method 'upgma'
+				--p-clustering-method 'upgma' \
 				--m-metadata-file $metadata_filepath \
 				--p-sampling-depth $sampling_depth \
-				--p-iterations 20
+				--p-iterations 20 \
 				--o-visualization "${qzaoutput2}beta-rarefactions/${thing}.qzv"
 		done
 		
