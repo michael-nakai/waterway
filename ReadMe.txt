@@ -1,0 +1,23 @@
+#######################################
+#	   Installing Packages	      #
+#######################################
+
+waterway.bash relies on the following languages and packages:
+	-An installed Qiime2 environment
+		-q2picrust extension (optional)
+		-DEICODE extension (optional)
+	-R version 3.5 or higher
+		-Tidyverse (installed in the base conda environment)
+		-data.table (installed in the base conda environment)
+
+If you have not installed any of the extensions in the conda environment, it is heavily recommended to install them by using the following options with Waterway:
+	--install-picrust
+	--install-deicode
+
+To install Tidyverse, run the following commands from the command line:
+	conda deactivate
+	R
+	install.packages('tidyverse')
+	quit(save = "no")
+
+If it's your first time using Waterway, then it is recommended that you run it with the above commands once.

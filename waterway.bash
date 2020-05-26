@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.4"
+version="2.5"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -47,13 +47,17 @@ q2versionnum=${q2versionnum%.*} # it'll say something like "2019.10" or "2020.2"
 
 # Setting very basic arguments (srcpath is located here)
 exitnow=false
+
+scriptdir=`dirname "$0"`
+rscript_path="${scriptdir}/metadata_filter.R"
+	
+	
 if [ -z "$1" ]; then
 	# see if argument exists to waterway, then use that dir and find configs
 	# if argument doesnt exist, use current working dir
 	srcpath="./config.txt"
 	analysis_path="./optional_analyses.txt"
 	rename_path="./patterns_to_rename.txt"
-	scriptdir=`dirname "$0"`
 else
 	# see if last char in $1 is '/', and if it is, trim it
 	str=$1
@@ -65,7 +69,6 @@ else
 	srcpath="${str}/config.txt"
 	analysis_path="${str}/optional_analyses.txt"
 	rename_path="${str}/patterns_to_rename.txt"
-	scriptdir="${str}"
 fi
 
 # Useful helper functions here
@@ -137,6 +140,18 @@ function errorlog {
 #-----------------------------------------Main Function Start---------------------------------------
 #---------------------------------------------------------------------------------------------------
 
+# Get the conda commands (because they're not exported by default for some reason)
+if [ -f "/home/${USER}/miniconda3/etc/profile.d/conda.sh" ]; then
+	source "/home/${USER}/miniconda3/etc/profile.d/conda.sh"
+	talkative "Sourced miniconda profile.d"
+elif [ -f "/home/${USER}/anaconda/etc/profile.d/conda.sh" ]; then
+	source "/home/${USER}/anaconda/etc/profile.d/conda.sh"
+	talkative "Sourced anaconda profile.d"
+fi
+
+# Finding the current conda environment (used in beta analysis, continuous vars)
+condaenv=$CONDA_PREFIX
+echo "condaenv = $condaenv"
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>OPTIONS BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 verbose=false
@@ -202,6 +217,9 @@ do
 	fi
 	if [ "$op" == "--install-picrust" ] ; then
 		install_picrust=true
+	fi
+	if [ "$op" == "--install-tidyverse-conda" ] ; then
+		install_tidyverse=true
 	fi
 	if [ "$op" == "-n" ] || [ "$op" == "--version" ] ; then
 		echo ""
@@ -283,14 +301,19 @@ if [[ "$show_functions" = true ]] ; then
 fi
 
 # Install picrust and deicode here if the install options were added
-if [[ "$install-deicode" = true ]] ; then
+if [[ "$install_deicode" = true ]] ; then
 	exitnow=true
 	conda install -c conda-forge deicode
 fi
 
-if [[ "$install-picrust" = true ]] ; then
+if [[ "$install_picrust" = true ]] ; then
 	exitnow=true
 	conda install q2-picrust2 -c conda-forge -c bioconda -c gavinmdouglas
+fi
+
+if [[ "$install_tidyverse" = true ]] ; then
+	exitnow=true
+	conda install -c r r-tidyverse
 fi
 
 if [[ "$do_fastqc" = true ]] ; then
@@ -314,9 +337,11 @@ if [ ! -f $srcpath ]; then
 	echo -e "qzaoutput=/home/username/folder with raw-data, metadata, and outputs folders/outputs/" >> config.txt
 	echo -e "metadata_filepath=/home/username/folder with raw-data, metadata, and outputs folders/metadata/metadata.tsv\n" >> config.txt
 	
-	echo -e "#Fill these out if using a manifest file" >> config.txt
+	echo -e "#Fill these out if creating a manifest file" >> config.txt
 	echo -e "Fpattern=_R1" >> config.txt
-	echo -e "Rpattern=_R2" >> config.txt
+	echo -e "Rpattern=_R2\n" >> config.txt
+	
+	echo -e "#Fill these out if using a manifest file" >> config.txt
 	echo -e "manifest=/home/username/folder with raw-data, metadata, and outputs folders/raw-data/manifest.tsv" >> config.txt
 	echo -e "manifest_format=PairedEndFastqManifestPhred33V2\n" >> config.txt
 	
@@ -331,6 +356,9 @@ if [ ! -f $srcpath ]; then
 	
 	echo -e "#Determine what group you'd like to compare between for beta diversity. It needs to match the group name in the metadata exactly, caps sensitive." >> config.txt
 	echo -e "beta_diversity_group=Group_Here\n" >> config.txt
+	
+	echo -e "#Input what your missing samples are marked with (if anything)" >> config.txt
+	echo -e "missing_samples="
 	
 	echo -e "#Path to the trained classifier for sk-learn" >> config.txt
 	echo -e "classifierpath=/home/username/classifier.qza\n" >> config.txt
@@ -760,10 +788,12 @@ fi
 
 # Devtest block!
 if [ "$devtest" = true ]; then
-	echolog "This is getting echologged"
-	logger "This should be only in the log"
-	talkative "This is only present if we're verbose"
-	errorlog "This goes to stderr"
+	group="FaecalAcetate"
+	qzaoutput2="/home/michael/Projects/Francine_Marques/vicgut-qiime2/outputs/243-224/"
+	conda deactivate
+	unset R_HOME
+	Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${rscript_path} $metadata_filepath $qzaoutput2 $missing_samples
+	conda activate $condaenv
 	exit 0
 fi
 
@@ -1470,19 +1500,42 @@ fi
 
 # Beta analysis (continuous data)
 if [ "$run_beta_continuous" = true ]; then
+	
+	# Make all the folders first
+	for fl in ${qzaoutput}*/rep-seqs.qza
+	do
+		qzaoutput2=${fl%"rep-seqs.qza"}
+		mkdir "${qzaoutput2}rerun_beta_continuous" 2> /dev/null
+		mkdir "${qzaoutput2}rerun_beta_continuous/outputs" 2> /dev/null
+		mkdir "${qzaoutput2}rerun_beta_continuous/filtered_metadata" 2> /dev/null
+		
+		for group in "${continuous_group[@]}"
+		do
+			mkdir "${qzaoutput2}rerun_beta_continuous/${group}" 2> /dev/null
+		done
+	done
+	
+	# Initial metadata filtering here
+	for fl in ${qzaoutput}*/rep-seqs.qza
+	do
+		qzaoutput2=${fl%"rep-seqs.qza"}
+		echolog "Starting ${CYAN}metadata filtering${NC}"
+		conda deactivate
+		unset R_HOME
+		Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${rscript_path} $metadata_filepath $qzaoutput2 $missing_samples
+		conda activate $condaenv
+		echolog "${GREEN}    Finished metadata filtering${NC}"
+	done
+
 	for group in "${continuous_group[@]}"
 	do
 		for fl in ${qzaoutput}*/rep-seqs.qza
 		do
-			#Defining qzaoutput2
+			# Defining qzaoutput2
 			qzaoutput2=${fl%"rep-seqs.qza"}
 			
 			unweightedDistance="${qzaoutput2}core-metrics-results/unweighted_unifrac_distance_matrix.qza"
 			weightedDistance="${qzaoutput2}core-metrics-results/weighted_unifrac_distance_matrix.qza"
-			
-			mkdir "${qzaoutput2}rerun_beta_continuous" 2> /dev/null
-			mkdir "${qzaoutput2}rerun_beta_continuous/${group}" 2> /dev/null
-			mkdir "${qzaoutput2}rerun_beta_continuous/outputs" 2> /dev/null
 			
 			talkative "group = $group"
 			talkative "fl = $fl"
@@ -1491,7 +1544,7 @@ if [ "$run_beta_continuous" = true ]; then
 			echolog "Starting ${CYAN}qiime metadata distance-matrix${NC}"
 			
 			qiime metadata distance-matrix \
-				--m-metadata-file $metadata_filepath \
+				--m-metadata-file "${qzaoutput2}rerun_beta_continuous/filtered_metadata/${group}-filtered.tsv" \
 				--m-metadata-column $group \
 				--o-distance-matrix "${qzaoutput2}rerun_beta_continuous/${group}/${group}_distance_matrix.qza"
 			
@@ -1535,7 +1588,7 @@ fi
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>ANCOM>>>>>>>>>>>>>>>>>>>>>>>
 
-if [[ ( "$run_ancom" = true && "$sklearn_done" = true ) || ( "$make_collapsed_table" = true && "$sklearn_done" = true ) ]] ; then
+if [[ "$run_ancom" = true && "$sklearn_done" = true ]] ; then
 	
 	echolog ""
 	echolog "Starting ANCOM analysis..."
@@ -1788,7 +1841,6 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 				--p-n-estimators $number_of_trees_to_grow \
 				--p-optimize-feature-selection \
 				--p-parameter-tuning \
-				--p-palette $palette \
 				--p-missing-samples 'ignore' \
 				--output-dir "${qzaoutput2}supervised_learning_classifier/categorical/${group}"
 				
@@ -1796,7 +1848,7 @@ if [ "$run_classify_samples_categorical" = true ] && [ "$NCV" = false ] && [ "$s
 			echolog "Starting ${CYAN}summarization${NC} of output files"
 			
 			qiime sample-classifier summarize \
-				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/categorical/${group}/sample_estimator.qza"
+				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/categorical/${group}/sample_estimator.qza" \
 				--o-visualization "${qzaoutput2}supervised_learning_classifier/categorical/${group}/${group}-sample_estimator_summary.qzv"
 			
 			qiime metadata tabulate \
@@ -1893,7 +1945,6 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 				--p-cv $k_cross_validations_continuous \
 				--p-random-state $random_seed_continuous \
 				--p-n-estimators $number_of_trees_to_grow_continuous \
-				--p-palette $palette_continuous \
 				--p-missing-samples 'ignore' \
 				--output-dir "${qzaoutput2}supervised_learning_classifier/continuous/${group}"
 				
@@ -1901,7 +1952,7 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 			echolog "Starting ${CYAN}summarization${NC} of output files"
 			
 			qiime sample-classifier summarize \
-				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/continuous/${group}/sample_estimator.qza"
+				--i-sample-estimator "${qzaoutput2}supervised_learning_classifier/continuous/${group}/sample_estimator.qza" \
 				--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-sample_estimator_summary.qzv"
 			
 			qiime metadata tabulate \
