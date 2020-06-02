@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.5"
+version="2.7"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -151,7 +151,7 @@ fi
 
 # Finding the current conda environment (used in beta analysis, continuous vars)
 condaenv=$CONDA_PREFIX
-echo "condaenv = $condaenv"
+talkative "condaenv = $condaenv"
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>OPTIONS BLOCK>>>>>>>>>>>>>>>>>>>>>>>
 verbose=false
@@ -381,8 +381,12 @@ if [ ! -f $analysis_path ]; then
 	
 	touch optional_analyses.txt
 	
-	echo -e "### Phyloseq and alpha rarefaction" >> optional_analyses.txt
-	echo -e "rerun_phylo_and_alpha=false\n" >> optional_analyses.txt
+	echo -e "### Extended alpha diversity metrics" >> optional_analyses.txt
+	echo -e "extended_alpha=false\n" >> optional_analyses.txt
+	
+	echo -e "### Beta rarefaction" >> optional_analyses.txt
+	echo -e "rerun_beta_rarefaction=false\n" >> optional_analyses.txt
+	echo -e "rarefaction_groups=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
 	
 	echo -e "### Beta analysis for categorical variables" >> optional_analyses.txt
 	echo -e "rerun_beta_analysis=false" >> optional_analyses.txt
@@ -424,6 +428,7 @@ if [ ! -f $analysis_path ]; then
 	echo -e "heatmap_num=30" >> optional_analyses.txt
 	echo -e "retraining_samples_known_value=true" >> optional_analyses.txt
 	echo -e "NCV=true" >> optional_analyses.txt
+	echo -e "-------------------" >> optional_analyses.txt
 	echo -e "random_seed=123 #Do not change unless needed" >> optional_analyses.txt
 	echo -e "estimator_method='RandomForestClassifier' #Do not change unless needed" >> optional_analyses.txt
 	echo -e "k_cross_validations=5 #Do not change unless needed" >> optional_analyses.txt
@@ -437,6 +442,7 @@ if [ ! -f $analysis_path ]; then
 	echo -e "heatmap_num_continuous=30" >> optional_analyses.txt
 	echo -e "retraining_samples_known_value_continuous=true" >> optional_analyses.txt
 	echo -e "NCV_continuous=true" >> optional_analyses.txt
+	echo -e "-------------------" >> optional_analyses.txt
 	echo -e "estimator_method_continuous='RandomForestRegressor' #Do not change unless needed" >> optional_analyses.txt
 	echo -e "k_cross_validations_continuous=5 #Do not change unless needed" >> optional_analyses.txt
 	echo -e "random_seed_continuous=123 #Do not change unless needed" >> optional_analyses.txt
@@ -788,13 +794,7 @@ fi
 
 # Devtest block!
 if [ "$devtest" = true ]; then
-	group="FaecalAcetate"
-	qzaoutput2="/home/michael/Projects/Francine_Marques/vicgut-qiime2/outputs/243-224/"
-	conda deactivate
-	unset R_HOME
-	Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${rscript_path} $metadata_filepath $qzaoutput2 $missing_samples
-	conda activate $condaenv
-	exit 0
+	:
 fi
 
 #>>>>>>>>>>>>>>>>>>>>>>>>>>VERBOSE/TEST VARIABLES>>>>>>>>>>>>>>>>
@@ -1102,9 +1102,9 @@ fi
 if [ "$import_done" = false ]; then
 	
 	#If no manifest file, we import via normal filepath
-	echolog "Starting ${CYAN}qiime tools import${NC}"
-	
 	if [ "$manifest_status" = false ]; then
+		
+		echolog "Starting ${CYAN}qiime tools import${NC}"
 	
 		qiime tools import \
 			--type 'SampleData[PairedEndSequencesWithQuality]' \
@@ -1118,7 +1118,9 @@ if [ "$import_done" = false ]; then
 	
 	#If manifest was set to true, we import via the manifest path
 	if [ "$manifest_status" = true ]; then
-	
+		
+		echolog "Starting ${CYAN}qiime tools import${NC} using a manifest file"
+		
 		qiime tools import \
 			--type 'SampleData[PairedEndSequencesWithQuality]' \
 			--input-path $manifest \
@@ -1421,39 +1423,88 @@ fi
 #>>>>>>>>>>>>>>>>>>>>>>>>>>RERUN BLOCK>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Rerun alpha diversity (if needed for some reason)
-if [ "$rerun_phylo_and_alpha" = true ]; then
+if [ "$extended_alpha" = true ]; then
 	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
 	do
 		#Defining qzaoutput2
 		qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
 		
-		mkdir "${qzaoutput2}rerun_alpha" 2> /dev/null
+		mkdir "${qzaoutput2}alpha_diversities" 2> /dev/null
+		mkdir "${qzaoutput2}alpha_diversities/Vectors" 2> /dev/null
+		mkdir "${qzaoutput2}alpha_diversities/Visualizations" 2> /dev/null
 		
-		echolog "Rerunning ${CYAN}core-metrics-phylogenetic${NC} for ${BMAGENTA}${qzaoutput2}${NC}"
-		qiime diversity core-metrics-phylogenetic \
-			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
-			--i-table "${qzaoutput2}table.qza" \
-			--p-sampling-depth $sampling_depth \
-			--m-metadata-file $metadata_filepath \
-			--output-dir "${qzaoutput2}rerun_alpha/core-metrics-results"
+		nophylogroups=('heip_e' 'ace' 'strong' 'menhinick' 'chao1' 'mcintosh_e' 'fisher_alpha' 'dominance' 'michaelis_menten_fit' 'margalef' 'berger_parker_d' 'brillouin_d' 'lladser_pe' 'robbins' 'simpson' 'singles' 'observed_otus' 'lladser_ci' 'enspie' 'osd' 'goods_coverage' 'pielou_e' 'kempton_taylor_q' 'simpson_e' 'esty_ci' 'doubles' 'gini_index' 'shannon' 'mcintosh_d' 'chao1_ci')
+		
+		for group in ${nophylogroups[@]}
+		do
+		
+			echolog "Generating ${CYAN}alpha_diversity${NC} using method: ${BMAGENTA}${group}${NC}"
 			
-		echolog "${GREEN}    Finished core-metrics-phylogenetic for ${qzaoutput2}${NC}"
-
-		talkative "Starting ${CYAN}alpha-group-significance${NC} and ${CYAN}alpha-rarefaction${NC}"
-
-		qiime diversity alpha-group-significance \
-			--i-alpha-diversity "${qzaoutput2}rerun_alpha/core-metrics-results/faith_pd_vector.qza" \
-			--m-metadata-file $metadata_filepath \
-			--o-visualization "${qzaoutput2}rerun_alpha/core-metrics-results/faith-pd-group-significance.qzv"
-
-		qiime diversity alpha-rarefaction \
-			--i-table "${qzaoutput2}rerun_alpha/table.qza" \
-			--i-phylogeny "${qzaoutput2}rerun_alpha/rooted-tree.qza" \
-			--p-max-depth $sampling_depth \
-			--m-metadata-file $metadata_filepath \
-			--o-visualization "${qzaoutput2}rerun_alpha/alpha-rarefaction.qzv"
+			qiime diversity alpha \
+				--i-table "${qzaoutput2}table.qza" \
+				--p-metric $group \
+				--o-alpha-diversity "${qzaoutput2}/Vectors/${group}_vector.qza"
+				
+			echolog "${CYAN}Visualizing...${NC}"
+			
+			qiime diversity alpha-group-significance \
+				--i-alpha-diversity "${qzaoutput2}/Vectors/${group}_vector.qza" \
+				--m-metadata-file $metadata_filepath \
+				--o-visualization "${qzaoutput2}alpha_diversities/Visualizations/${group}_significance.qzv"
+			
+		done
 		
-		talkative "${GREEN}    Finished alpha rarefaction and group significance${NC}"
+		echolog "Generating ${CYAN}alpha_diversity${NC} using method: faith_pd"
+			
+		qiime diversity alpha-phylogenetic \
+			--i-table "${qzaoutput2}table.qza" \
+			--i-phylogeny "${qzaoutput2}rooted-tree.qza"
+			--p-metric 'faith_pd' \
+			--o-alpha-diversity "${qzaoutput2}/Vectors/faith_pd_vector.qza"
+			
+		echolog "${CYAN}Visualizing...${NC}"
+		
+		qiime diversity alpha-group-significance \
+			--i-alpha-diversity "${qzaoutput2}/Vectors/faith_pd_vector.qza" \
+			--m-metadata-file $metadata_filepath \
+			--o-visualization "${qzaoutput2}alpha_diversities/Visualizations/faith_pd_significance.qzv"
+		
+		echolog "${GREEN}    Finished extended alpha-diversity analysis{NC}"
+	done
+fi
+
+# Beta rarefactions
+if [ "$rerun_beta_rarefaction" = true ]; then
+	for fl in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		# Defining qzaoutput2
+		qzaoutput2=${fl%"rep-seqs.qza"}
+		mkdir "${qzaoutput2}beta-rarefactions"
+	
+		for group in ${rarefaction_groups[@]}
+		do
+			mkdir "${qzaoutput2}beta-rarefactions/${group}"
+			
+			# Do the beta rarefaction here
+			metric_list=('euclidean' 'correlation' 'weighted_normalized_unifrac' 'seuclidean' 'braycurtis' 'unweighted_unifrac' 'sqeuclidean' 'generalized_unifrac' 'aitchison' 'matching' 'weighted_unifrac' 'jaccard')
+			for thing in ${metric_list[@]}
+			do
+				echolog "Starting ${CYAN}beta-rarefaction${NC} type: ${BMAGENTA}${thing}${NC} for ${BMAGENTA}${group}${NC}"
+				
+				qiime diversity beta-rarefaction \
+					--i-table "${qzaoutput2}table.qza" \
+					--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
+					--p-metric $thing \
+					--p-clustering-method 'upgma' \
+					--m-metadata-file $metadata_filepath \
+					--p-sampling-depth $sampling_depth \
+					--p-iterations 20 \
+					--o-visualization "${qzaoutput2}beta-rarefactions/${group}/${group}-${thing}.qzv"
+			done
+		done
+		echolog "${GREEN}    Finished beta-rarefaction${NC}"
+		echolog "Starting ${CYAN}beta-group-significance${NC}"
 	done
 fi
 
@@ -1522,7 +1573,8 @@ if [ "$run_beta_continuous" = true ]; then
 		echolog "Starting ${CYAN}metadata filtering${NC}"
 		conda deactivate
 		unset R_HOME
-		Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${rscript_path} $metadata_filepath $qzaoutput2 $missing_samples
+		middlepart='rerun_beta_continuous/filtered_metadata/'
+		Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${rscript_path} $metadata_filepath $qzaoutput2 $missing_samples $middlepart
 		conda activate $condaenv
 		echolog "${GREEN}    Finished metadata filtering${NC}"
 	done
@@ -1923,14 +1975,33 @@ fi
 
 if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false ] && [ "$sklearn_done" = true ]; then
 
+	# Filter the metadata files first
+	for fl in ${qzaoutput}*/rep-seqs.qza
+	do
+		# Defining qzaoutput2
+		qzaoutput2=${fl%"rep-seqs.qza"}
+		
+		# Make the files first
+		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/continuous" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/continuous/filtered_metadata" 2> /dev/null
+		
+		# Filter the metadata
+		qzaoutput2=${fl%"rep-seqs.qza"}
+		echolog "Starting ${CYAN}metadata filtering${NC}"
+		conda deactivate
+		unset R_HOME
+		middlepart='supervised_learning_classifier/continuous/filtered_metadata/'
+		Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${rscript_path} $metadata_filepath $qzaoutput2 $missing_samples $middlepart
+		conda activate $condaenv
+		echolog "${GREEN}    Finished metadata filtering${NC}"
+	done
+
 	for repqza in ${qzaoutput}*/rep-seqs.qza
 	do
 	
 		# Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
-			
-		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
-		mkdir "${qzaoutput2}supervised_learning_classifier/continuous" 2> /dev/null
 		
 		for group in ${metadata_column_continuous[@]}
 		do
@@ -1939,7 +2010,7 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 			
 			qiime sample-classifier regress-samples \
 				--i-table "${qzaoutput2}table.qza" \
-				--m-metadata-file $metadata_filepath \
+				--m-metadata-file "${qzaoutput2}supervised_learning_classifier/continuous/filtered_metadata/${group}-filtered.tsv" \
 				--m-metadata-column $group \
 				--p-test-size $test_proportion_continuous \
 				--p-cv $k_cross_validations_continuous \
@@ -1972,19 +2043,6 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/continuous/${group}/important_feature_table.qza"
 			
 			echolog "${GREEN}    Finished important feature isolating${NC}"
-			echolog "Starting ${CYAN}heatmap generation${NC} to find the top ${BMAGENTA}${heatmap_num}${NC} most abundant features"
-			
-			qiime sample-classifier heatmap \
-				--i-table "${qzaoutput2}table.qza" \
-				--i-importance "${qzaoutput2}supervised_learning_classifier/continuous/${group}/feature_importance.qza" \
-				--m-sample-metadata-file $metadata_filepath \
-				--m-sample-metadata-column $group \
-				--p-group-samples \
-				--p-feature-count $heatmap_num \
-				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/continuous/${group}/important-features-top-30.qza" \
-				--o-heatmap "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-important-feature-heatmap.qzv"
-				
-			echolog "${GREEN}    Finished heatmap generation${NC}"
 			echolog "Starting ${CYAN}sample-classifier predict-classification${NC}"
 				
 			qiime sample-classifier predict-classification \
@@ -2001,7 +2059,7 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 				qiime sample-classifier confusion-matrix \
 					--i-predictions "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-new_predictions.qza" \
 					--i-probabilities "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-new_probabilities.qza" \
-					--m-truth-file $metadata_filepath \
+					--m-truth-file "${qzaoutput2}supervised_learning_classifier/continuous/filtered_metadata/${group}-filtered.tsv" \
 					--m-truth-column $group \
 					--o-visualization "${qzaoutput2}supervised_learning_classifier/continuous/${group}/${group}-new_confusion_matrix.qzv"
 				
@@ -2086,14 +2144,46 @@ fi
 # NCV for continuous data
 if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = true ] && [ "$sklearn_done" = true ]; then
 
+	# Filter the metadata files and tables first
+	for fl in ${qzaoutput}*/rep-seqs.qza
+	do
+		# Defining qzaoutput2
+		qzaoutput2=${fl%"rep-seqs.qza"}
+		
+		# Make the files first
+		talkative "Making folders in ${qzaoutput2}supervised_learning_classifier"
+		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/filtered_metadata" 2> /dev/null
+		mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/filtered_tables" 2> /dev/null
+		talkative "${GREEN}    Finished making folders${NC}"
+		
+		# Filter the metadata
+		echolog "Starting ${CYAN}metadata filtering${NC}"
+		conda deactivate
+		unset R_HOME
+		middlepart='supervised_learning_classifier/Nested_Cross_Validation_Continuous/filtered_metadata/'
+		Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${rscript_path} $metadata_filepath $qzaoutput2 $missing_samples $middlepart
+		conda activate $condaenv
+		echolog "${GREEN}    Finished metadata filtering${NC}"
+		
+		# Filter the tables
+		echolog "Starting ${CYAN}table filtering${NC}"
+		for group in ${metadata_column_continuous[@]}
+		do
+			qiime feature-table filter-samples \
+				--i-table "${qzaoutput2}table.qza" \
+				--m-metadata-file "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/filtered_metadata/${group}-filtered.tsv" \
+				--o-filtered-table "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/filtered_tables/${group}-filtered-table.qza"
+		done
+		echolog "${GREEN}    Finished table filtering${NC}"
+	done
+
 	for repqza in ${qzaoutput}*/rep-seqs.qza
 	do
 	
 		# Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
-			
-		mkdir "${qzaoutput2}supervised_learning_classifier" 2> /dev/null
-		mkdir "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous" 2> /dev/null
 		
 		for group in ${metadata_column_continuous[@]}
 		do
@@ -2103,8 +2193,8 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = true ]
 			echolog "Starting ${CYAN}NCV regressor classification${NC} for ${BMAGENTA}${group}${NC}"
 			
 			qiime sample-classifier regress-samples-ncv \
-				--i-table "${qzaoutput2}table.qza" \
-				--m-metadata-file $metadata_filepath \
+				--i-table "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/filtered_tables/${group}-filtered-table.qza" \
+				--m-metadata-file "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/filtered_metadata/${group}-filtered.tsv" \
 				--m-metadata-column $group \
 				--p-estimator $estimator_method_continuous \
 				--p-n-estimators $number_of_trees_to_grow_continuous \
@@ -2117,8 +2207,8 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = true ]
 			
 			qiime sample-classifier scatterplot \
 				--i-predictions "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-predictions-ncv.qza" \
-				--m-truth-file $metadata_filepath \
-				--m-truth-column ${group} \
+				--m-truth-file "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/filtered_metadata/${group}-filtered.tsv" \
+				--m-truth-column $group \
 				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-scatter.qzv"
 			
 			echolog "${GREEN}    Finished scatterplot generation${NC}"
@@ -2133,7 +2223,6 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = true ]
 				--o-visualization "${qzaoutput2}supervised_learning_classifier/Nested_Cross_Validation_Continuous/${group}/${group}-importance-ncv.qzv"
 			
 			echolog "${GREEN}    Finished summarization${NC}"
-			
 		done
 	done
 fi
@@ -2286,9 +2375,9 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 	echolog ""
 
 else
-	errorlog "${YELLOW}Either run_gneiss is set to false, or taxonomic analyses"
-	errorlog "${YELLOW}have not been completed on the dataset. Gneiss analysis"
-	errorlog "${YELLOW}will not proceed."
+	errorlog "${YELLOW}Either run_gneiss is set to false, or taxonomic analyses${NC}"
+	errorlog "${YELLOW}have not been completed on the dataset. Gneiss analysis${NC}"
+	errorlog "${YELLOW}will not proceed.${NC}"
 fi
 
 
