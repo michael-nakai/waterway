@@ -1424,16 +1424,16 @@ fi
 
 # Rerun alpha diversity (if needed for some reason)
 if [ "$extended_alpha" = true ]; then
-	for fl in "${qzaoutput}*/core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"
+	for fl in ${qzaoutput}*/table.qza
 	do
 		#Defining qzaoutput2
-		qzaoutput2=${fl%"core-metrics-phylogenetic/weighted_unifrac_distance_matrix.qza"}
+		qzaoutput2=${fl%"table.qza"}
 		
 		mkdir "${qzaoutput2}alpha_diversities" 2> /dev/null
 		mkdir "${qzaoutput2}alpha_diversities/Vectors" 2> /dev/null
 		mkdir "${qzaoutput2}alpha_diversities/Visualizations" 2> /dev/null
 		
-		nophylogroups=('heip_e' 'ace' 'strong' 'menhinick' 'chao1' 'mcintosh_e' 'fisher_alpha' 'dominance' 'michaelis_menten_fit' 'margalef' 'berger_parker_d' 'brillouin_d' 'lladser_pe' 'robbins' 'simpson' 'singles' 'observed_otus' 'lladser_ci' 'enspie' 'osd' 'goods_coverage' 'pielou_e' 'kempton_taylor_q' 'simpson_e' 'esty_ci' 'doubles' 'gini_index' 'shannon' 'mcintosh_d' 'chao1_ci')
+		nophylogroups=('ace' 'berger_parker_d' 'brillouin_d' 'chao1' 'chao1_ci' 'dominance' 'doubles' 'enspie' 'esty_ci' 'fisher_alpha' 'gini_index' 'goods_coverage' 'heip_e' 'kempton_taylor_q' 'lladser_ci' 'lladser_pe' 'margalef' 'mcintosh_d' 'mcintosh_e' 'menhinick' 'michaelis_menten_fit' 'observed_otus' 'osd' 'pielou_e' 'robbins' 'shannon' 'simpson' 'simpson_e' 'singles' 'strong')
 		
 		for group in ${nophylogroups[@]}
 		do
@@ -1443,12 +1443,12 @@ if [ "$extended_alpha" = true ]; then
 			qiime diversity alpha \
 				--i-table "${qzaoutput2}table.qza" \
 				--p-metric $group \
-				--o-alpha-diversity "${qzaoutput2}/Vectors/${group}_vector.qza"
+				--o-alpha-diversity "${qzaoutput2}alpha_diversities/Vectors/${group}_vector.qza"
 				
 			echolog "${CYAN}Visualizing...${NC}"
 			
 			qiime diversity alpha-group-significance \
-				--i-alpha-diversity "${qzaoutput2}/Vectors/${group}_vector.qza" \
+				--i-alpha-diversity "${qzaoutput2}alpha_diversities/Vectors/${group}_vector.qza" \
 				--m-metadata-file $metadata_filepath \
 				--o-visualization "${qzaoutput2}alpha_diversities/Visualizations/${group}_significance.qzv"
 			
@@ -1460,12 +1460,12 @@ if [ "$extended_alpha" = true ]; then
 			--i-table "${qzaoutput2}table.qza" \
 			--i-phylogeny "${qzaoutput2}rooted-tree.qza"
 			--p-metric 'faith_pd' \
-			--o-alpha-diversity "${qzaoutput2}/Vectors/faith_pd_vector.qza"
+			--o-alpha-diversity "${qzaoutput2}alpha_diversities/Vectors/faith_pd_vector.qza"
 			
 		echolog "${CYAN}Visualizing...${NC}"
 		
 		qiime diversity alpha-group-significance \
-			--i-alpha-diversity "${qzaoutput2}/Vectors/faith_pd_vector.qza" \
+			--i-alpha-diversity "${qzaoutput2}alpha_diversities/Vectors/faith_pd_vector.qza" \
 			--m-metadata-file $metadata_filepath \
 			--o-visualization "${qzaoutput2}alpha_diversities/Visualizations/faith_pd_significance.qzv"
 		
