@@ -562,7 +562,7 @@ fi
 #>>>>>>>>>>>>>>>>>>>>START FILTER TABLE BLOCK>>>>>>>>>>>>>>>>>>>>
 if [[ "$filter" = true ]] ; then
 	
-	metadata_to_filter="${metadata_filepath}/filter_inputs"
+	metadata_to_filter="${projpath}filter_inputs"
 	
 	# Check if the metadata to filter folder was made yet
 	if [ ! -d "${metadata_to_filter}" ]; then
@@ -570,8 +570,8 @@ if [[ "$filter" = true ]] ; then
 		mkdir $metadata_to_filter
 		
 		echo -e ""
-		echo -e "The folder ${BMAGENTA}filter_inputs${NC} was created in your metadata"
-		echo -e "filepath. Please put your filtered metadata files in that folder, then"
+		echo -e "The folder ${BMAGENTA}filter_inputs${NC} was created in your project"
+		echo -e "directory. Please put your filtered metadata files in that folder, then"
 		echo -e "rerun this command."
 		echo -e ""
 	
@@ -596,10 +596,10 @@ if [[ "$filter" = true ]] ; then
 		repinput="${qzaoutput2}rep-seqs.qza"
 		
 		# Make the folders for tables/repseqs
-		mkdir "${qzaoutput2}/tables" 2> /dev/null
-		mkdir "${qzaoutput2}/rep-seqs" 2> /dev/null
+		mkdir "${qzaoutput2}tables" 2> /dev/null
+		mkdir "${qzaoutput2}rep-seqs" 2> /dev/null
 		
-		for file in "${metadata_to_filter}/*"
+		for file in ${metadata_to_filter}/*
 		do
 			
 			xbase=${file##*/}
@@ -1433,7 +1433,7 @@ if [ "$extended_alpha" = true ]; then
 		mkdir "${qzaoutput2}alpha_diversities/Vectors" 2> /dev/null
 		mkdir "${qzaoutput2}alpha_diversities/Visualizations" 2> /dev/null
 		
-		nophylogroups=('ace' 'berger_parker_d' 'brillouin_d' 'chao1' 'chao1_ci' 'dominance' 'doubles' 'enspie' 'esty_ci' 'fisher_alpha' 'gini_index' 'goods_coverage' 'heip_e' 'kempton_taylor_q' 'lladser_ci' 'lladser_pe' 'margalef' 'mcintosh_d' 'mcintosh_e' 'menhinick' 'michaelis_menten_fit' 'observed_otus' 'osd' 'pielou_e' 'robbins' 'shannon' 'simpson' 'simpson_e' 'singles' 'strong')
+		nophylogroups=('ace' 'berger_parker_d' 'brillouin_d' 'chao1' 'chao1_ci' 'dominance' 'doubles' 'enspie' 'esty_ci' 'fisher_alpha' 'gini_index' 'goods_coverage' 'heip_e' 'kempton_taylor_q' 'lladser_ci' 'lladser_pe' 'margalef' 'mcintosh_d' 'mcintosh_e' 'menhinick' 'observed_otus' 'osd' 'pielou_e' 'robbins' 'shannon' 'simpson' 'simpson_e' 'singles' 'strong')
 		
 		for group in ${nophylogroups[@]}
 		do

@@ -1,5 +1,5 @@
 #######################################
-#	   Installing Packages	      #
+#	   Installing Packages	          #
 #######################################
 
 waterway.bash relies on the following languages and packages:
