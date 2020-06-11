@@ -414,6 +414,7 @@ if [ ! -f $analysis_path ]; then
 	
 	echo -e "### Songbird Analysis" >> optional_analyses.txt
 	echo -e "run_songbird=false" >> optional_analyses.txt
+	echo -e "songbird_metadata_filepath=''" >> optional_analyses.txt
 	echo -e "songbird_formula=''" >> optional_analyses.txt
 	echo -e "songbird_epochs=10000" >> optional_analyses.txt
 	echo -e "songbird_differential_prior=0.5" >> optional_analyses.txt
@@ -1522,6 +1523,15 @@ fi
 
 # Beta diversity (categorical data)
 if [ "$rerun_beta_analysis" = true ]; then
+
+	for fl in ${qzaoutput}*/rep-seqs.qza
+	do
+		#Defining qzaoutput2
+		qzaoutput2=${fl%"rep-seqs.qza"}
+		
+		mkdir "${qzaoutput2}beta_div_reruns" 2> /dev/null
+	done
+
 	for group in "${rerun_group[@]}"
 	do
 		for fl in ${qzaoutput}*/rep-seqs.qza
@@ -1533,10 +1543,9 @@ if [ "$rerun_beta_analysis" = true ]; then
 			talkative "fl = $fl"
 			talkative "qzaoutput2 = $qzaoutput2"
 			
-			mkdir "${qzaoutput2}beta_div_reruns" 2> /dev/null
 			return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1
 			echo $(return_unused_filename "${qzaoutput2}beta_div_reruns" rerun1)
-			mkdir "${qzaoutput2}beta_div_reruns/rerun_${group}"
+			mkdir "${qzaoutput2}beta_div_reruns/rerun_${group}" 2> /dev/null
 			
 			echolog "Starting ${CYAN}beta-group-significance${NC} for ${group}"
 			
@@ -1657,6 +1666,15 @@ if [[ "$run_ancom" = true && "$sklearn_done" = true ]] ; then
 	echolog ""
 	echolog "Starting ANCOM analysis..."
 	
+	# Initial metadata filtering here
+	for fl in ${qzaoutput}*/rep-seqs.qza
+	do
+		qzaoutput2=${fl%"rep-seqs.qza"}
+		
+		mkdir "${qzaoutput2}ancom_outputs" 2> /dev/null
+		mkdir "${qzaoutput2}ancom_outputs/all_qzvfiles" 2> /dev/null
+	done
+	
 	for group in "${group_to_compare[@]}"
 	do
 		
@@ -1670,9 +1688,7 @@ if [[ "$run_ancom" = true && "$sklearn_done" = true ]] ; then
 				#Defining qzaoutput2
 				qzaoutput2=${repqza%"rep-seqs.qza"}
 				
-				mkdir "${qzaoutput2}ancom_outputs" 2> /dev/null
 				mkdir "${qzaoutput2}ancom_outputs/${group}" 2> /dev/null
-				mkdir "${qzaoutput2}ancom_outputs/all_qzvfiles" 2> /dev/null
 				
 				echolog "${CYAN}feature-table filter-features${NC} starting for ${BMAGENTA}${group}${NC}"
 				
@@ -1884,16 +1900,17 @@ if [ "$run_songbird" = true ] && [ "$sklearn_done" = true ]; then
 	for repqza in ${qzaoutput}*/rep-seqs.qza
 	do
 	
-		#Defining qzaoutput2
+		# Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
-			
+		
 		mkdir "${qzaoutput2}songbird_outputs" 2> /dev/null
 		
+		# Run Songbird
 		echolog "Running ${CYAN}Songbird multinomial model building${NC}"
 
 		qiime songbird multinomial \
 			--i-table "${qzaoutput2}table.qza" \
-			--m-metadata-file $metadata_filepath \
+			--m-metadata-file $songbird_metadata_filepath \
 			--p-formula $songbird_formula \
 			--p-epochs $songbird_epochs \
 			--p-differential-prior $songbird_differential_prior \
@@ -1911,7 +1928,7 @@ if [ "$run_songbird" = true ] && [ "$sklearn_done" = true ]; then
 			--o-visualization "${qzaoutput2}songbird_outputs/regression-summary.qzv"
 		
 		echolog "${GREEN}    Finished creating biplot${NC}"
-		echolog "${GREEN}    Finished DEICODE for ${repqza}${NC}"
+		echolog "${GREEN}    Finished Songbird for ${qzaoutput2}${NC}"
 	done
 else
 	errorlog "${YELLOW}Either run_songbird is set to false, or taxonomic analyses${NC}"
@@ -1921,7 +1938,47 @@ else
 fi
 
 
-#<<<<<<<<<<<<<<<<<<<<END DEICODE<<<<<<<<<<<<<<<<<<<<
+#<<<<<<<<<<<<<<<<<<<<END SONGBIRD<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>START SONGBIRD (NATIVE)>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$run_songbird_native" = true ] && [ "$sklearn_done" = true ]; then
+
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		# Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+		
+		# Export the table to a biom file
+		echo "Exporting table.qza to a .biom file"
+		qiime tools export --input-path "${qzaoutput2}table.qza" --output-path "${qzaoutput2}exported_files"
+		
+		# Run Songbird
+		echolog "Running ${CYAN}Songbird multinomial model building${NC}"
+
+		songbird multinomial \
+			--input-biom "${qzaoutput2}exported_files/feature-table.biom" \
+			--metadata-file $songbird_metadata_filepath \
+			--formula $songbird_formula \
+			--epochs $songbird_epochs \
+			--differential-prior $songbird_differential_prior \
+			--training-column $songbird_training_col \
+			--summary-interval $songbird_summary_interval \
+			--summary-dir ${qzaoutput2}songbird_outputs
+		
+		echolog "${GREEN}    Finished model building${NC}"
+		echolog "${GREEN}    Finished Songbird for ${qzaoutput2}${NC}"
+	done
+else
+	errorlog "${YELLOW}Either run_songbird is set to false, or taxonomic analyses${NC}"
+	errorlog "${YELLOW}have not been completed on the dataset. Songbird analysis${NC}"
+	errorlog "${YELLOW}will not proceed.${NC}"
+	errorlog ""
+fi
+
+
+#<<<<<<<<<<<<<<<<<<<<END SONGBIRD<<<<<<<<<<<<<<<<<<<<
 #---------------------------------------------------------------------------------------------------
 #>>>>>>>>>>>>>>>>>>>>START SAMPLE CLASSIFIER (CATEGORICAL)>>>>>>>>>>>>>>>>>>>>>>>
 
