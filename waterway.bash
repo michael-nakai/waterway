@@ -38,7 +38,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.7"
+version="2.8"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -412,6 +412,14 @@ if [ ! -f $analysis_path ]; then
 	echo -e "run_biplot=false" >> optional_analyses.txt
 	echo -e "number_of_dimensions=20\n" >> optional_analyses.txt
 	
+	echo -e "### Songbird Analysis" >> optional_analyses.txt
+	echo -e "run_songbird=false" >> optional_analyses.txt
+	echo -e "songbird_formula=''" >> optional_analyses.txt
+	echo -e "songbird_epochs=10000" >> optional_analyses.txt
+	echo -e "songbird_differential_prior=0.5" >> optional_analyses.txt
+	echo -e "songbird_training_col='Training'" >> optional_analyses.txt
+	echo -e "songbird_summary_interval=1" >> optional_analyses.txt
+	
 	echo -e "### DEICODE analysis (DEICODE must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
 	echo -e "run_deicode=false" >> optional_analyses.txt
 	echo -e "num_of_features=8" >> optional_analyses.txt
@@ -610,15 +618,19 @@ if [[ "$filter" = true ]] ; then
 			qiime feature-table filter-samples \
 				--i-table $input \
 				--m-metadata-file $file \
-				--o-filtered-table "${qzaoutput2}/tables/${xpref}-table.qza"
+				--o-filtered-table "${qzaoutput2}tables/${xpref}-table.qza"
 			
 			qiime feature-table filter-seqs \
 				--i-data $repinput \
-				--i-table "${qzaoutput2}/tables/${xpref}-table.qza" \
-				--o-filtered-data "${qzaoutput2}/rep-seqs/${xpref}-rep-seqs.qza"
+				--i-table "${qzaoutput2}tables/${xpref}-table.qza" \
+				--o-filtered-data "${qzaoutput2}rep-seqs/${xpref}-rep-seqs.qza"
 			
 		done
 	done
+	
+	echolog "${GREEN}Finished table and rep-seq filtering${NC}"
+	
+	exit 0
 fi
 
 #<<<<<<<<<<<<<<<<<<<<END FILTER TABLE BLOCK<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -1306,7 +1318,7 @@ if [ "$divanalysis_done" = false ]; then
 		
 		mkdir "${qzaoutput2}beta-rarefactions"
 		
-		metric_list=('euclidean' 'correlation' 'weighted_normalized_unifrac' 'seuclidean' 'braycurtis' 'unweighted_unifrac' 'sqeuclidean' 'generalized_unifrac' 'aitchison' 'matching' 'weighted_unifrac' 'jaccard')
+		metric_list=('unweighted_unifrac' 'weighted_unifrac')
 		for thing in ${metric_list[@]}
 		do
 			echolog "Starting ${CYAN}beta-rarefaction${NC} type: ${BMAGENTA}${thing}${NC}"
@@ -1487,7 +1499,7 @@ if [ "$rerun_beta_rarefaction" = true ]; then
 			mkdir "${qzaoutput2}beta-rarefactions/${group}"
 			
 			# Do the beta rarefaction here
-			metric_list=('euclidean' 'correlation' 'weighted_normalized_unifrac' 'seuclidean' 'braycurtis' 'unweighted_unifrac' 'sqeuclidean' 'generalized_unifrac' 'aitchison' 'matching' 'weighted_unifrac' 'jaccard')
+			metric_list=('unweighted_unifrac' 'weighted_unifrac')
 			for thing in ${metric_list[@]}
 			do
 				echolog "Starting ${CYAN}beta-rarefaction${NC} type: ${BMAGENTA}${thing}${NC} for ${BMAGENTA}${group}${NC}"
@@ -1858,6 +1870,52 @@ if [ "$run_deicode" = true ] && [ "$sklearn_done" = true ]; then
 else
 	errorlog "${YELLOW}Either run_deicode is set to false, or taxonomic analyses${NC}"
 	errorlog "${YELLOW}have not been completed on the dataset. Deicode analysis${NC}"
+	errorlog "${YELLOW}will not proceed.${NC}"
+	errorlog ""
+fi
+
+
+#<<<<<<<<<<<<<<<<<<<<END DEICODE<<<<<<<<<<<<<<<<<<<<
+#---------------------------------------------------------------------------------------------------
+#>>>>>>>>>>>>>>>>>>>>START SONGBIRD>>>>>>>>>>>>>>>>>>>>>>>
+
+if [ "$run_songbird" = true ] && [ "$sklearn_done" = true ]; then
+
+	for repqza in ${qzaoutput}*/rep-seqs.qza
+	do
+	
+		#Defining qzaoutput2
+		qzaoutput2=${repqza%"rep-seqs.qza"}
+			
+		mkdir "${qzaoutput2}songbird_outputs" 2> /dev/null
+		
+		echolog "Running ${CYAN}Songbird multinomial model building${NC}"
+
+		qiime songbird multinomial \
+			--i-table "${qzaoutput2}table.qza" \
+			--m-metadata-file $metadata_filepath \
+			--p-formula $songbird_formula \
+			--p-epochs $songbird_epochs \
+			--p-differential-prior $songbird_differential_prior \
+			--p-training-column $songbird_training_col \
+			--p-summary-interval $songbird_summary_interval \
+			--o-differentials "${qzaoutput2}songbird_outputs/differentials.qza" \
+			--o-regression-stats "${qzaoutput2}songbird_outputs/regression-stats.qza" \
+			--o-regression-biplot "${qzaoutput2}songbird_outputs/regression-biplot.qza"
+		
+		echolog "${GREEN}    Finished model building${NC}"
+		echolog "Creating ${CYAN}summary of model${NC}"
+		
+		qiime songbird summarize-single \
+			--i-regression-stats "${qzaoutput2}songbird_outputs/regression-stats.qza" \
+			--o-visualization "${qzaoutput2}songbird_outputs/regression-summary.qzv"
+		
+		echolog "${GREEN}    Finished creating biplot${NC}"
+		echolog "${GREEN}    Finished DEICODE for ${repqza}${NC}"
+	done
+else
+	errorlog "${YELLOW}Either run_songbird is set to false, or taxonomic analyses${NC}"
+	errorlog "${YELLOW}have not been completed on the dataset. Songbird analysis${NC}"
 	errorlog "${YELLOW}will not proceed.${NC}"
 	errorlog ""
 fi
