@@ -1,0 +1,37 @@
+#!/bin/bash
+
+if [[ "$show_functions" = true ]] ; then
+	echo -e ""
+	echo -e "Functions used in this script:"
+	echo -e ""
+	echo -e "---Import Block---"
+	echo -e "1a. qiime tools import (Paired end, Cassava 1.8)"
+	echo -e "1b. qiime tools import (Paired end, from manifest with Phred33V2, only if -m is used)"
+	echo -e "Both output ${BMAGENTA}imported-seqs.qza${NC}"
+	echo -e ""
+	echo -e "---Import Visualization Block---"
+	echo -e "2. qiime demux summarize (outputs ${BMAGENTA}imported_seqs.qzv${NC})"
+	echo -e ""
+	echo -e "---Dada2 Block---"
+	echo -e "3. qiime dada2 denoise-paired (outputs ${BMAGENTA}table.qza${NC}, ${BMAGENTA}rep-seqs.qza${NC}, ${BMAGENTA}denoising-stats.qza${NC})"
+	echo -e "4. qiime feature-table summarize (outputs ${BMAGENTA}table.qzv)${NC}"
+	echo -e "5. qiime feature-table tabulate-seqs (outputs ${BMAGENTA}rep-seqs.qzv)${NC}"
+	echo -e "6. qiime metadata tabulate (outputs ${BMAGENTA}denoising-stats.qzv${NC})"
+	echo -e ""
+	echo -e "---Tree Generation Block---"
+	echo -e "7. qiime phylogeny align-to-tree-mafft-fasttree (outputs a masked rep-seqs and 2 tree qza files)"
+	echo -e ""
+	echo -e "---Phylogeny Generation Block---"
+	echo -e "8. qiime diversity core-metrics-phylogenetic (outputs ${BMAGENTA}core-metrics-results${NC} folder)"
+	echo -e "9. qiime diversity alpha-rarefaction (outputs ${BMAGENTA}alpha-rarefaction.qzv${NC})"
+	echo -e ""
+	echo -e "---Taxonomic Assignment Block---"
+	echo -e "10. qiime feature-classifier classify-sklearn (outputs ${BMAGENTA}taxonomy.qza${NC})"
+	echo -e "11. qiime metadata tabulate (outputs ${BMAGENTA}taxonomy.qzv${NC})"
+	echo -e "12. qiime taxa barplot (outputs ${BMAGENTA}taxa-bar-plots.qzv${NC})"
+	echo -e ""
+	echo -e "For more detail, visit: http://marqueslab.erc.monash.edu/home/michael/waterway_docs/QYyBgctVnjnFvSFij7qJrMul6/index.html"
+	echo -e ""
+	
+	exit 0
+fi

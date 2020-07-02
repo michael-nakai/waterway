@@ -1,0 +1,30 @@
+#!/bin/bash
+
+if [[ "$hlp" = true ]] ; then
+	echo ""
+	echo "DESCRIPTION"
+	echo "-------------------"
+	echo "This script runs the Qiime2 pipeline (without extensive analysis)"
+	echo "and outputs core-metrics-phylogenetic and taxa-bar-plots. It"
+	echo "pulls variables from config.txt"
+	echo ""
+	echo "USAGE"
+	echo "-------------------"
+	echo "./waterway.bash [path_to_dir_containing_config_here] {options}"
+	echo "Note: the path_to_dir is mandatory when using options"
+	echo ""
+	echo "OPTIONS"
+	echo "-------------------"
+	echo -e "-M\tGenerate manifest file from files in filepath (in config.txt)"
+	echo -e "-m\tUse manifest file to import sequences, as specified in the config file"
+	echo -e "-v\tVerbose script output"
+	echo -e "-t\tTest the progress flags and exit before executing any qiime commands"
+	echo -e "-l\tEnable logging to a log file that is made where this script is"
+	echo -e "-f\tShow the exact list of functions used in this script and their output files"
+	echo -e "-c\tTrain a greengenes 13_5 99% coverage otu classifier."
+	echo -e "-r\tReplaces underscores with hyphens from filenames that match a pattern that includes underscores to replace."
+	echo -e "-F\tFilters the table.qza and rep-seqs.qza by metadata files located in metadata/filter_inputs/"
+	echo -e "-h\tShow this help dialogue"
+	echo ""
+	exit 0
+fi

@@ -8,7 +8,6 @@ waterway.bash relies on the following languages and packages:
 		-DEICODE extension (optional)
 	-R version 3.5 or higher
 		-Tidyverse (installed in the base conda environment)
-		-data.table (installed in the base conda environment)
 
 If you have not installed any of the extensions in the conda environment, it is heavily recommended to install them by using the following options with Waterway:
 	--install-picrust
