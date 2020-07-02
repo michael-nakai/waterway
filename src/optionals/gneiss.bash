@@ -87,4 +87,5 @@ else
 	errorlog "${YELLOW}Either run_gneiss is set to false, or taxonomic analyses${NC}"
 	errorlog "${YELLOW}have not been completed on the dataset. Gneiss analysis${NC}"
 	errorlog "${YELLOW}will not proceed.${NC}"
+	errorlog ""
 fi

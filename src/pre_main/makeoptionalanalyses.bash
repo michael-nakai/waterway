@@ -47,7 +47,7 @@ if [ ! -f $analysis_path ]; then
 	echo -e "songbird_epochs=10000" >> optional_analyses.txt
 	echo -e "songbird_differential_prior=0.5" >> optional_analyses.txt
 	echo -e "songbird_training_col='Training'" >> optional_analyses.txt
-	echo -e "songbird_summary_interval=1" >> optional_analyses.txt
+	echo -e "songbird_summary_interval=1\n" >> optional_analyses.txt
 	
 	echo -e "### DEICODE analysis (DEICODE must be installed as a Qiime2 plugin first)" >> optional_analyses.txt
 	echo -e "run_deicode=false" >> optional_analyses.txt

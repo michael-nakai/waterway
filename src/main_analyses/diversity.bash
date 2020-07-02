@@ -4,7 +4,7 @@ if [ "$divanalysis_done" = false ]; then
 
 	#Break here if sampling_depth is 0
 	if [ $sampling_depth -eq 0 ] ; then
-		errorlog -e "${RED}Sampling depth not set${NC}"
+		errorlog "${RED}Sampling depth not set${NC}"
 		if [[ "$log" = true ]]; then
 			replace_colorcodes_log ${name}.out
 		fi

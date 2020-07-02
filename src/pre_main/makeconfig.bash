@@ -34,7 +34,7 @@ if [ ! -f $srcpath ]; then
 	echo -e "beta_diversity_group=Group_Here\n" >> config.txt
 	
 	echo -e "#Input what your missing samples are marked with (if anything)" >> config.txt
-	echo -e "missing_samples="
+	echo -e "missing_samples= #What your missing samples are labelled as (ex: NA, none, missing)\n" >> config.txt
 	
 	echo -e "#Path to the trained classifier for sk-learn" >> config.txt
 	echo -e "classifierpath=/home/username/classifier.qza\n" >> config.txt

@@ -165,24 +165,24 @@ talkative "condaenv = $condaenv"
 # >>>>>>>>>>>>>> OPTIONS >>>>>>>>>>>>>>
 
 # Set the option flags here
-. ./src/pre_main/setoptions.bash
+. ${scriptdir}/src/pre_main/setoptions.bash
 
 # If help was set, show help and exit
-. ./src/pre_main/showhelp.bash
+. ${scriptdir}/src/pre_main/showhelp.bash
 
 # If show_functions was set, show the sequence of functions as below:
-. ./src/pre_main/showfunctions.bash
+. ${scriptdir}/src/pre_main/showfunctions.bash
 
 # Install picrust and deicode here if the install options were added
-. ./src/pre_main/installaddons.bash
+. ${scriptdir}/src/pre_main/installaddons.bash
 
 # Make fastqc and multiqc reports for all files
-. ./src/pre_main/fastqc.bash
+. ${scriptdir}/src/pre_main/fastqc.bash
 
 # See if configs exist
-. ./src/pre_main/makeconfig.bash
+. ${scriptdir}/src/pre_main/makeconfig.bash
 
-. ./src/pre_main/makeoptionalanalyses.bash
+. ${scriptdir}/src/pre_main/makeoptionalanalyses.bash
 
 # Exit here once if configs didn't exist before, to let the user define variables and filepaths
 if [ "$exitnow" = true ]; then
@@ -202,32 +202,32 @@ files_created=() #Does nothing for now
 
 # Putting in flexibility in filepath inputs for projpath, filepath, and qzaoutput
 # see if last char in filepath is '/', and if it is, trim it
-. ./src/pre_main/flexiblefilepaths.bash
+. ${scriptdir}/src/pre_main/flexiblefilepaths.bash
 
 # <<<<<<<<<<< END OPTIONS <<<<<<<<<<<
 
 
 # >>>>>>>>>>>>>>>>>>>> LOGGING >>>>>>>>>>>>>>>>>>>>
 # Everything below this codeblock will go to a logfile
-. ./src/pre_main/startlogging.bash
+. ${scriptdir}/src/pre_main/startlogging.bash
 
 
 # >>>>>>>>>>>>>>>>>>>> MANIFEST FILE GENERATION >>>>>>>>>>>>>>>>>>>>
 # if -M was set, source config.txt and make a manifest file
-. ./src/pre_main/makemanifest.bash
+. ${scriptdir}/src/pre_main/makemanifest.bash
 
 
 # >>>>>>>>>>>>>>>>>>>> FILTER TABLE.QZA >>>>>>>>>>>>>>>>>>>>
-. ./src/pre_main/filtertable.bash
+. ${scriptdir}/src/pre_main/filtertable.bash
 
 
 # >>>>>>>>>>>>>>>>>>>> RENAME FILES >>>>>>>>>>>>>>>>>>>>
-. ./src/pre_main/rename.bash
+. ${scriptdir}/src/pre_main/rename.bash
 
 
 # >>>>>>>>>>>>>>>>>>>> TESTING >>>>>>>>>>>>>>>>>>>>>
 # Figuring out where in the pipeline we got to last time waterway was run
-. ./src/pre_main/testing.bash
+. ${scriptdir}/src/pre_main/testing.bash
 
 
 # Devtest block, for me!
@@ -239,11 +239,11 @@ echolog ""
 
 # >>>>>>>>>>>>>>> VERBOSE/TEST VARIABLES >>>>>>>>>>>>>>>>
 # Find if tst or verbose is true, and run the codeblock if true
-. ./src/pre_main/verboseortest.bash
+. ${scriptdir}/src/pre_main/verboseortest.bash
 
 
 # >>>>>>>>>>>>> TRAINING A CLASSIFIER >>>>>>>>>>>>
-. ./src/pre_main/trainingclassifier.bash
+. ${scriptdir}/src/pre_main/trainingclassifier.bash
 
 
 #####################################################################################################
@@ -255,20 +255,20 @@ echolog ""
 
 
 # >>>>>>>>>>>>>>>>>>> IMPORT >>>>>>>>>>>>>>>>>>>
-. ./src/main/import.bash
+. ${scriptdir}/src/main_analyses/import.bash
 
 
 # >>>>>>>>>>>>>>>>> DADA2 >>>>>>>>>>>>>>>>>
-. ./src/main/dada2.bash
+. ${scriptdir}/src/main_analyses/dada2.bash
 
 
 # >>>>>>>>>>>>>>>> DIVERSITY >>>>>>>>>>>>>>>
-. ./src/main/tree.bash
-. ./src/main/diversity.bash
+. ${scriptdir}/src/main_analyses/tree.bash
+. ${scriptdir}/src/main_analyses/diversity.bash
 
 
 #>>>>>>>>>>>>>>> SK_LEARN >>>>>>>>>>>>>>
-. ./src/main/sklearn.bash
+. ${scriptdir}/src/main_analyses/sklearn.bash
 
 
 #####################################################################################################
@@ -284,66 +284,66 @@ echolog ""
 # >>>>>>>>>>>>>>>> RERUN BLOCK >>>>>>>>>>>>>>>>
 
 # Rerun alpha diversity (if needed for some reason)
-. ./src/optionals/extendedalpha.bash
+. ${scriptdir}/src/optionals/extendedalpha.bash
 
 # Beta rarefactions
-. ./src/optionals/betararefaction.bash
+. ${scriptdir}/src/optionals/betararefaction.bash
 
 # Beta diversity (categorical data)
-. ./src/optionals/betadiv_categorical.bash
+. ${scriptdir}/src/optionals/betadiv_categorical.bash
 
 # Beta analysis (continuous data)
-. ./src/optionals/betadiv_continuous.bash
+. ${scriptdir}/src/optionals/betadiv_continuous.bash
 
 # <<<<<<<<<<<<<<<< END RERUN BLOCK <<<<<<<<<<<<<<<
 
 
 # >>>>>>>>>>>>>>> ANCOM >>>>>>>>>>>>>>>
-. ./src/optionals/ancom.bash
+. ${scriptdir}/src/optionals/ancom.bash
 
 
 # >>>>>>>>>>>> PCOA BIPLOT >>>>>>>>>>>>>
-. ./src/optionals/biplot.bash
+. ${scriptdir}/src/optionals/biplot.bash
 
 
 # >>>>>>>>>>>>>>>> DEICODE >>>>>>>>>>>>>>>>>
-. ./src/optionals/deicode.bash
+. ${scriptdir}/src/optionals/deicode.bash
 
 
 # >>>>>>>>>>>>>>>>> SONGBIRD >>>>>>>>>>>>>>>>>
-. ./src/optionals/songbird.bash
+. ${scriptdir}/src/optionals/songbird.bash
 
 
 # >>>>>>>>>>>>>>>> SONGBIRD (NATIVE) >>>>>>>>>>>>>>>>>
-. ./src/optionals/songbird_native.bash
+. ${scriptdir}/src/optionals/songbird_native.bash
 
 
 # >>>>>>>>>>>>>>> SCNIC >>>>>>>>>>>>>>>
-. ./src/optionals/scnic.bash
+. ${scriptdir}/src/optionals/scnic.bash
 
 
 # >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (CATEGORICAL) >>>>>>>>>>>>>>>>>>
-. ./src/optionals/sampleclassifier_categorical.bash
+. ${scriptdir}/src/optionals/sampleclassifier_categorical.bash
 
 
 # >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (CONTINUOUS) >>>>>>>>>>>>>>>>>>>
-. ./src/optionals/sampleclassifier_continuous.bash
+. ${scriptdir}/src/optionals/sampleclassifier_continuous.bash
 
 
 # >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (NESTED CROSS VALIDATION) >>>>>>>>>>>>>>>
-. ./src/optionals/sampleclassifier_ncv.bash
+. ${scriptdir}/src/optionals/sampleclassifier_ncv.bash
 
 
 # >>>>>>>>>>>>>> PICRUST2 >>>>>>>>>>>>>>
-. ./src/optionals/picrust2.bash
+. ${scriptdir}/src/optionals/picrust2.bash
 
 
 # >>>>>>>>>>>>>>>>> GNEISS GRADIENT CLUSTERING >>>>>>>>>>>>>>
-. ./src/optionals/gneiss.bash
+. ${scriptdir}/src/optionals/gneiss.bash
 
 
 # >>>>>>>>>>>>>>> BIOENV >>>>>>>>>>>>>>>>
-. ./src/optionals/bioenv.bash
+. ${scriptdir}/src/optionals/bioenv.bash
 
 
 # >>>>>>>>>>>>>> SORT AND OUTPUT >>>>>>>>>>>>>>>>>>>>>>>

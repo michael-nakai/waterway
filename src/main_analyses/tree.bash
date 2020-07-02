@@ -22,6 +22,5 @@ if [ "$tree_done" = false ]; then
 	done
 
 	echolog "${GREEN}    Finished trees${NC}"
-	echolog "Starting ${CYAN}core-metrics-phylogenetic${NC}"
 	
 fi
