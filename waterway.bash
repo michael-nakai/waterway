@@ -163,6 +163,7 @@ condaenv=$CONDA_PREFIX
 talkative "condaenv = $condaenv"
 
 # >>>>>>>>>>>>>> OPTIONS >>>>>>>>>>>>>>
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 # Set the option flags here
 . ${scriptdir}/src/pre_main/setoptions.bash
@@ -205,6 +206,7 @@ files_created=() #Does nothing for now
 . ${scriptdir}/src/pre_main/flexiblefilepaths.bash
 
 # <<<<<<<<<<< END OPTIONS <<<<<<<<<<<
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
 # >>>>>>>>>>>>>>>>>>>> LOGGING >>>>>>>>>>>>>>>>>>>>
