@@ -30,6 +30,5 @@ if [ "$rerun_beta_rarefaction" = true ]; then
 			done
 		done
 		echolog "${GREEN}    Finished beta-rarefaction${NC}"
-		echolog "Starting ${CYAN}beta-group-significance${NC}"
 	done
 fi

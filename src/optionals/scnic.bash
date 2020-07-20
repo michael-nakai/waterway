@@ -8,7 +8,7 @@ if [ "$run_SCNIC" = true ] && [ "$sklearn_done" = true ]; then
 		# Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
 		
-		# Run Songbird
+		# Run SCNIC
 		echolog "Running ${CYAN}SCNIC${NC}"
 
 		# TODO: Add SCNIC analysis here
@@ -16,9 +16,9 @@ if [ "$run_SCNIC" = true ] && [ "$sklearn_done" = true ]; then
 		echolog "${GREEN}    Finished SCNIC${NC}"
 		echolog "${GREEN}    Finished SCNIC for ${qzaoutput2}${NC}"
 	done
-else
-	errorlog "${YELLOW}Either run_songbird is set to false, or taxonomic analyses${NC}"
-	errorlog "${YELLOW}have not been completed on the dataset. Songbird analysis${NC}"
-	errorlog "${YELLOW}will not proceed.${NC}"
-	errorlog ""
+#else
+	#talkative "${YELLOW}Either run_songbird is set to false, or taxonomic analyses${NC}"
+	#talkative "${YELLOW}have not been completed on the dataset. Songbird analysis${NC}"
+	#talkative "${YELLOW}will not proceed.${NC}"
+	#talkative ""
 fi

@@ -50,8 +50,8 @@ if [ "$run_picrust" = true ] && [ "$sklearn_done" = true ]; then
 	echolog "${GREEN}    Finished the picrust pipeline block${NC}"
 	
 else
-	echolog "${YELLOW}Either run_picrust is set to false, or taxonomic analyses${NC}"
-	echolog "${YELLOW}have not been completed on the dataset. Picrust2 production${NC}"
-	echolog "${YELLOW}will not proceed.${NC}"
-	echolog ""
+	talkative "${YELLOW}Either run_picrust is set to false, or taxonomic analyses${NC}"
+	talkative "${YELLOW}have not been completed on the dataset. Picrust2 production${NC}"
+	talkative "${YELLOW}will not proceed.${NC}"
+	talkative ""
 fi

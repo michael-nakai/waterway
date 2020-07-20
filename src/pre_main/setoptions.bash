@@ -34,6 +34,9 @@ do
 	if [ "$op" == "-h" ] || [ "$op" == "--help" ] ; then
 		hlp=true
 	fi
+	if [ "$op" == "-s" ] || [ "$op" == "--subsets" ] ; then
+		subset=true
+	fi
 	if [ "$op" == "-f" ] || [ "$op" == "--show-functions" ] ; then
 		show_functions=true
 	fi

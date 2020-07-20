@@ -8,6 +8,7 @@ if [ "$run_bioenv" = true ] && [ "$sklearn_done" = true ]; then
 		betaDistanceMatrices=('unweighted' 'weighted')
 		for distance in $betaDistanceMatrices
 		do
+
 			echolog "Starting ${CYAN}bioenv diversity analysis${NC} for ${BMAGENTA}${distance}_unifrac${NC}"
 			
 			qiime diversity bioenv \
@@ -19,4 +20,8 @@ if [ "$run_bioenv" = true ] && [ "$sklearn_done" = true ]; then
 		done
 		echolog "${GREEN}    Finished bioenv analysis${NC} for ${BMAGENTA}${qzaoutput2}${NC}"
 	done
+else
+	talkative "${YELLOW}Either bioenv is set to false, or taxonomic analyses${NC}"
+	talkative "${YELLOW}have not been completed on the dataset. Bioenv analysis${NC}"
+	talkative "${YELLOW}will not proceed.${NC}"
 fi

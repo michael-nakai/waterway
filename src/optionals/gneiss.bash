@@ -84,8 +84,8 @@ if [ "$run_gneiss" = true ] && [ "$sklearn_done" = true ]; then
 	echolog ""
 
 else
-	errorlog "${YELLOW}Either run_gneiss is set to false, or taxonomic analyses${NC}"
-	errorlog "${YELLOW}have not been completed on the dataset. Gneiss analysis${NC}"
-	errorlog "${YELLOW}will not proceed.${NC}"
-	errorlog ""
+	talkative "${YELLOW}Either run_gneiss is set to false, or taxonomic analyses${NC}"
+	talkative "${YELLOW}have not been completed on the dataset. Gneiss analysis${NC}"
+	talkative "${YELLOW}will not proceed.${NC}"
+	talkative ""
 fi

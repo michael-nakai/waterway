@@ -27,7 +27,6 @@ if [ ! -f $analysis_path ]; then
 	
 	echo -e "### Ancom analysis" >> optional_analyses.txt
 	echo -e "run_ancom=false" >> optional_analyses.txt
-	echo -e "make_collapsed_table=false" >> optional_analyses.txt
 	echo -e "collapse_taxa_to_level=(2 6)" >> optional_analyses.txt
 	echo -e "group_to_compare=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
 	

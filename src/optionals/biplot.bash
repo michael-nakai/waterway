@@ -63,8 +63,8 @@ if [ "$run_biplot" = true ] && [ "$sklearn_done" = true ]; then
 		
 	done
 else
-	errorlog "${YELLOW}Either run_biplot is set to false, or taxonomic analyses${NC}"
-	errorlog "${YELLOW}have not been completed on the dataset. Biplot production${NC}"
-	errorlog "${YELLOW}will not proceed.${NC}"
-	errorlog ""
+	talkative "${YELLOW}Either run_biplot is set to false, or taxonomic analyses${NC}"
+	talkative "${YELLOW}have not been completed on the dataset. Biplot production${NC}"
+	talkative "${YELLOW}will not proceed.${NC}"
+	talkative ""
 fi

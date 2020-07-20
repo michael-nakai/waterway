@@ -63,7 +63,7 @@ if [[ "$filter" = true ]] ; then
 	echolog "${GREEN}Finished table and rep-seq filtering${NC}"
 
 	metadata_folder=$(dirname "$metadata_filepath")
-	mkdir ${metadata_folder}/subsets
+	mkdir ${metadata_folder}/subsets 2> /dev/null
 
 	mv $metadata_to_filter/* ${metadata_folder}/subsets/
 	

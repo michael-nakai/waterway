@@ -96,8 +96,8 @@ if [ "$run_classify_samples_continuous" = true ] && [ "$NCV_continuous" = false 
 		done
 	done
 else
-	errorlog "${YELLOW}Either run_classify_samples_continuous is set to false, or taxonomic analyses${NC}"
-	errorlog "${YELLOW}have not been completed on the dataset. Classifier training${NC}"
-	errorlog "${YELLOW}will not proceed.${NC}"
-	errorlog ""
+	talkative "${YELLOW}Either run_classify_samples_continuous is set to false, or taxonomic analyses${NC}"
+	talkative "${YELLOW}have not been completed on the dataset. Classifier training${NC}"
+	talkative "${YELLOW}will not proceed.${NC}"
+	talkative ""
 fi
