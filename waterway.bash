@@ -39,7 +39,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="2.11.0"
+version="3.0.0"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -199,6 +199,8 @@ source $analysis_path 2> /dev/null
 
 # Define solid, unmoving variables
 demuxpairedendpath=${qzaoutput}imported_seqs.qza
+metadata_basename=$(basename $metadata_filepath)
+orig_metadata_filepath=$metadata_filepath
 files_created=() #Does nothing for now
 
 # Putting in flexibility in filepath inputs for projpath, filepath, and qzaoutput
@@ -254,7 +256,7 @@ echolog ""
 #---------------------------------------------------------------------------------------------------#
 #####################################################################################################
 
-
+### NORMAL EXECUTION
 
 # >>>>>>>>>>>>>>>>>>> IMPORT >>>>>>>>>>>>>>>>>>>
 . ${scriptdir}/src/main_analyses/import.bash
@@ -262,6 +264,10 @@ echolog ""
 
 # >>>>>>>>>>>>>>>>> DADA2 >>>>>>>>>>>>>>>>>
 . ${scriptdir}/src/main_analyses/dada2.bash
+
+
+# >>>>>>>>>>>>>>>>>>>> CREATE SUBSETS >>>>>>>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/createSubsets.bash
 
 
 # >>>>>>>>>>>>>>>> DIVERSITY >>>>>>>>>>>>>>>
@@ -273,6 +279,16 @@ echolog ""
 . ${scriptdir}/src/main_analyses/sklearn.bash
 
 
+### SUBSET EXECUTION
+
+# >>>>>>>>>>>>>>>> DIVERSITY >>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/main_analyses/tree.bash
+. ${scriptdir}/src/subsets/main_analyses/diversity.bash
+
+#>>>>>>>>>>>>>>> SK_LEARN >>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/main_analyses/sklearn.bash
+
+
 #####################################################################################################
 #---------------------------------------------------------------------------------------------------#
 #------------------------------------------Optionals------------------------------------------------#
@@ -280,10 +296,8 @@ echolog ""
 #####################################################################################################
 
 
-### ALL CODE AFTER THIS POINT WILL EXECUTE ONLY AFTER THE MAIN CODE BLOCK HAS BEEN RUN
-
-
-# >>>>>>>>>>>>>>>> RERUN BLOCK >>>>>>>>>>>>>>>>
+### All code after this point will only be executed after the main analyses block is completed
+### NORMAL EXECUTION
 
 # Rerun alpha diversity (if needed for some reason)
 . ${scriptdir}/src/optionals/extendedalpha.bash
@@ -297,56 +311,92 @@ echolog ""
 # Beta analysis (continuous data)
 . ${scriptdir}/src/optionals/betadiv_continuous.bash
 
-# <<<<<<<<<<<<<<<< END RERUN BLOCK <<<<<<<<<<<<<<<
-
-
 # >>>>>>>>>>>>>>> ANCOM >>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/ancom.bash
-
 
 # >>>>>>>>>>>> PCOA BIPLOT >>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/biplot.bash
 
-
 # >>>>>>>>>>>>>>>> DEICODE >>>>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/deicode.bash
-
 
 # >>>>>>>>>>>>>>>>> SONGBIRD >>>>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/songbird.bash
 
-
 # >>>>>>>>>>>>>>>> SONGBIRD (NATIVE) >>>>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/songbird_native.bash
-
 
 # >>>>>>>>>>>>>>> SCNIC >>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/scnic.bash
 
-
 # >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (CATEGORICAL) >>>>>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/sampleclassifier_categorical.bash
-
 
 # >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (CONTINUOUS) >>>>>>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/sampleclassifier_continuous.bash
 
-
 # >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (NESTED CROSS VALIDATION) >>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/sampleclassifier_ncv.bash
-
 
 # >>>>>>>>>>>>>> PICRUST2 >>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/picrust2.bash
 
-
 # >>>>>>>>>>>>>>>>> GNEISS GRADIENT CLUSTERING >>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/gneiss.bash
-
 
 # >>>>>>>>>>>>>>> BIOENV >>>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/bioenv.bash
 
+
+### SUBSET EXECUTION
+
+# Rerun alpha diversity (if needed for some reason)
+. ${scriptdir}/src/subsets/optionals/extendedalpha.bash
+
+# Beta rarefactions
+. ${scriptdir}/src/subsets/optionals/betararefaction.bash
+
+# Beta diversity (categorical data)
+. ${scriptdir}/src/subsets/optionals/betadiv_categorical.bash
+
+# Beta analysis (continuous data)
+. ${scriptdir}/src/subsets/optionals/betadiv_continuous.bash
+
+# >>>>>>>>>>>>>>> ANCOM >>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/ancom.bash
+
+# >>>>>>>>>>>> PCOA BIPLOT >>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/biplot.bash
+
+# >>>>>>>>>>>>>>>> DEICODE >>>>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/deicode.bash
+
+# >>>>>>>>>>>>>>>>> SONGBIRD >>>>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/songbird.bash
+
+# >>>>>>>>>>>>>>>> SONGBIRD (NATIVE) >>>>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/songbird_native.bash
+
+# >>>>>>>>>>>>>>> SCNIC >>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/scnic.bash
+
+# >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (CATEGORICAL) >>>>>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/sampleclassifier_categorical.bash
+
+# >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (CONTINUOUS) >>>>>>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/sampleclassifier_continuous.bash
+
+# >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (NESTED CROSS VALIDATION) >>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/sampleclassifier_ncv.bash
+
+# >>>>>>>>>>>>>> PICRUST2 >>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/picrust2.bash
+
+# >>>>>>>>>>>>>>>>> GNEISS GRADIENT CLUSTERING >>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/gneiss.bash
+
+# >>>>>>>>>>>>>>> BIOENV >>>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/bioenv.bash
 
 # >>>>>>>>>>>>>> SORT AND OUTPUT >>>>>>>>>>>>>>>>>>>>>>>
 # TODO: Add all qza and qzv files produced to two different folders inside the truncF-truncR folders

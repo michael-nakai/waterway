@@ -43,9 +43,6 @@ do
 	if [ "$op" == "-c" ] || [ "$op" == "--train-classifier" ] ; then
 		train_classifier=true
 	fi
-	if [ "$op" == "-s" ] || [ "$op" == "--subsets" ] ; then
-		include_subsets=true
-	fi
 	if [ "$op" == "-g" ] || [ "$op" == "--graphs" ] ; then
 		graphs=true # Currently does nothing
 	fi

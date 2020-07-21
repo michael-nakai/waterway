@@ -56,7 +56,7 @@ if [ ! -f $analysis_path ]; then
 	echo -e "beta_rerun_group=('Group1' 'Group2' 'etc...') #Put the metadata columns here\n" >> optional_analyses.txt
 	
 	echo -e "### Bioenv analysis (can take a LONG time with many metadata variables)" >> optional_analyses.txt
-	echo -e "run_bioenv=false" >> optional_analyses.txt
+	echo -e "run_bioenv=false\n" >> optional_analyses.txt
 	
 	echo -e "### Sample classifier and prediction (categorical)" >> optional_analyses.txt
 	echo -e "run_classify_samples_categorical=false" >> optional_analyses.txt
