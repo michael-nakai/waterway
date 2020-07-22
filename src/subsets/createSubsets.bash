@@ -77,6 +77,7 @@ if [[ "$subset" = true ]] ; then
                 # Copy over all other files created during DADA2
                 echolog "Copying to ${subsetdir}"
                 cp ${qzaoutput2}denoising-stats.qz* ${subsetdir} 2> /dev/null
+                echolog ""
             done
 
             # Reset the metadata_filepath by resourcing config.txt
