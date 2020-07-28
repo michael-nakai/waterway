@@ -50,7 +50,7 @@ q2versionnum=${q2versionnum%.*} # it'll say something like "2019.10" or "2020.2"
 exitnow=false
 
 scriptdir=`dirname "$0"`
-rscript_path="${scriptdir}/metadata_filter.R"
+rscript_path="${scriptdir}/R_scripts/raw/metadata_filter.R"
 	
 	
 if [ -z "$1" ]; then
@@ -347,6 +347,10 @@ echolog ""
 # >>>>>>>>>>>>>>> BIOENV >>>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/bioenv.bash
 
+# WORKING ON THESE SCRIPTS
+# >>>>>>>>>>>>>>> RScripts >>>>>>>>>>>>>>>>
+# . ${scriptdir}/src/R_scripts/bash/run_make_phyloseq.bash
+
 
 ### SUBSET EXECUTION
 
@@ -397,6 +401,11 @@ echolog ""
 
 # >>>>>>>>>>>>>>> BIOENV >>>>>>>>>>>>>>>>
 . ${scriptdir}/src/subsets/optionals/bioenv.bash
+
+# WORKING ON THESE SCRIPTS
+# >>>>>>>>>>>>>>> RScripts >>>>>>>>>>>>>>>>
+# . ${scriptdir}/src/R_scripts/bash/run_make_phyloseq_subsets.bash
+
 
 # >>>>>>>>>>>>>> SORT AND OUTPUT >>>>>>>>>>>>>>>>>>>>>>>
 # TODO: Add all qza and qzv files produced to two different folders inside the truncF-truncR folders

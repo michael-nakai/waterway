@@ -9,6 +9,11 @@ if [ ! -f $analysis_path ]; then
 	
 	touch optional_analyses.txt
 	
+	echo -e "### If you download a taxa_bar_plots csv for LEFse, run this first on it" >> optional_analyses.txt
+	echo -e "cleanup_csv_for_LEFse=false" >> optional_analyses.txt
+	echo -e "path_to_csv=/home/username/level-6.csv" >> optional_analyses.txt
+	echo -e "group_to_compare=ExampleGroup" >> optional_analyses.txt
+
 	echo -e "### Extended alpha diversity metrics" >> optional_analyses.txt
 	echo -e "extended_alpha=false\n" >> optional_analyses.txt
 	
