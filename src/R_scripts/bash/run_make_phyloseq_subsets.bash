@@ -3,7 +3,7 @@
 # A phyloseq object will be saved if sklearn is done, and if the phyloseq .RData file doesn't exist
 for repqza in ${qzaoutput}*/subsets/*/rep-seqs.qza
 do
-    if [ $sklearn_done = true ] && [ ! -f "${repqza%'rep-seqs.qza'}R_outputs/phyloseq_object/phyloseq_object.RData" ]; then
+    if [ $sklearn_done = true ] && [ ! -f "${repqza%'rep-seqs.qza'}R_outputs/phyloseq_object/phyloseq_object.RData" ] && [ "$subset" = true ]; then
 
         # Define qzaoutput2
         qzaoutput2=${repqza%"rep-seqs.qza"}

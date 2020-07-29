@@ -50,7 +50,7 @@ q2versionnum=${q2versionnum%.*} # it'll say something like "2019.10" or "2020.2"
 exitnow=false
 
 scriptdir=`dirname "$0"`
-rscript_path="${scriptdir}/R_scripts/raw/metadata_filter.R"
+rscript_path="${scriptdir}/src/R_scripts/raw/metadata_filter.R" # Legacy, haven't had time to clean up yet. Should make filter-metadata.bash
 	
 	
 if [ -z "$1" ]; then
@@ -278,6 +278,9 @@ echolog ""
 #>>>>>>>>>>>>>>> SK_LEARN >>>>>>>>>>>>>>
 . ${scriptdir}/src/main_analyses/sklearn.bash
 
+#>>>>>>>>>>>>>> PHYLOSEQ OBJ >>>>>>>>>>>>>>>
+. ${scriptdir}/src/R_scripts/bash/run_make_phyloseqs.bash
+
 
 ### SUBSET EXECUTION
 
@@ -288,6 +291,9 @@ echolog ""
 #>>>>>>>>>>>>>>> SK_LEARN >>>>>>>>>>>>>>
 . ${scriptdir}/src/subsets/main_analyses/sklearn.bash
 
+#>>>>>>>>>>>>>> PHYLOSEQ OBJ >>>>>>>>>>>>>>>
+. ${scriptdir}/src/R_scripts/bash/run_make_phyloseq_subsets.bash
+
 
 #####################################################################################################
 #---------------------------------------------------------------------------------------------------#
@@ -297,6 +303,12 @@ echolog ""
 
 
 ### All code after this point will only be executed after the main analyses block is completed
+### ONE TIME EXECUTION
+
+# LEFse table generation
+. ${scriptdir}/src/R_scripts/bash/run_clean_taxa_csv.bash
+
+
 ### NORMAL EXECUTION
 
 # Rerun alpha diversity (if needed for some reason)
@@ -346,10 +358,6 @@ echolog ""
 
 # >>>>>>>>>>>>>>> BIOENV >>>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/bioenv.bash
-
-# WORKING ON THESE SCRIPTS
-# >>>>>>>>>>>>>>> RScripts >>>>>>>>>>>>>>>>
-# . ${scriptdir}/src/R_scripts/bash/run_make_phyloseq.bash
 
 
 ### SUBSET EXECUTION
@@ -401,10 +409,6 @@ echolog ""
 
 # >>>>>>>>>>>>>>> BIOENV >>>>>>>>>>>>>>>>
 . ${scriptdir}/src/subsets/optionals/bioenv.bash
-
-# WORKING ON THESE SCRIPTS
-# >>>>>>>>>>>>>>> RScripts >>>>>>>>>>>>>>>>
-# . ${scriptdir}/src/R_scripts/bash/run_make_phyloseq_subsets.bash
 
 
 # >>>>>>>>>>>>>> SORT AND OUTPUT >>>>>>>>>>>>>>>>>>>>>>>
