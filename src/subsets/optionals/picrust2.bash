@@ -53,7 +53,18 @@ if [ "$run_picrust" = true ] && [ "$subset" = true ]; then
 		   --output-dir "${qzaoutput2}q2-picrust2_output/pathabun_core_metrics"
 		
 		echolog "${GREEN}    Finished core-metrics generation${NC}"
-		
+		echolog "Starting ${CYAN}export to tsv${NC}"
+
+		qiime tools export \
+			--input-path "${qzaoutput2}q2-picrust2_output/pathway_abundance.qza" \
+			--output-path "${qzaoutput2}q2-picrust2_output/exported_tsv"
+
+		biom convert \
+			-i "${qzaoutput2}q2-picrust2_output/exported_tsv/feature-table.biom" \
+			-o "${qzaoutput2}q2-picrust2_output/exported_tsv/feature-table.tsv" \
+			--to-tsv
+
+		echolog "${GREEN}    Finished exporting${NC}"
 	done
 	
 	echolog "${GREEN}    Finished the picrust pipeline block${NC}"
