@@ -25,9 +25,10 @@ do
                 replace_colorcodes_log ${name}.out
             fi
 		
-		exit 0
+		    exit 0
 	    fi
-
+        
+        talkative "Found folder, starting formatting"
         echolog "Starting ${CYAN}csv formatting for LEFse${NC}"
 
         # Get ready for Rscript activation

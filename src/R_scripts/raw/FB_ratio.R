@@ -186,9 +186,12 @@ for (metaColName in metadataCols) {
 
     }
 
+    #-- TODO
     # Run ANOVA between values IF length of bigMetaGroups[[metaColName]] is greater than 2
     if (length(bigMetaGroups[[metaColName]]) > 2) {
         foo(100)
     }
 
 }
+
+### VISUALIZE: F:B RATIO DIFFERENCES

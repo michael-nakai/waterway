@@ -279,7 +279,7 @@ echolog ""
 . ${scriptdir}/src/main_analyses/sklearn.bash
 
 #>>>>>>>>>>>>>> PHYLOSEQ OBJ >>>>>>>>>>>>>>>
-. ${scriptdir}/src/R_scripts/bash/run_make_phyloseqs.bash
+. ${scriptdir}/src/R_scripts/bash/run_make_phyloseq.bash
 
 
 ### SUBSET EXECUTION
