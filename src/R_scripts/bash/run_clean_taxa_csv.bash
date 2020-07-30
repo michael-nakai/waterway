@@ -24,7 +24,6 @@ do
             if [[ "$log" = true ]]; then
                 replace_colorcodes_log ${name}.out
             fi
-		
 		    exit 0
 	    fi
         
