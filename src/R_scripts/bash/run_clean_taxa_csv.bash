@@ -35,19 +35,21 @@ do
         unset R_HOME
 
         # Set all vars to pass to Rscript
-        script_path="${scriptdir}/R_scripts/raw/clean_taxa_csv.R"
+        script_path="${scriptdir}/src/R_scripts/raw/clean_taxa_csv.R"
         finalOutputPath="${projpath}csv_for_LEFse/"
 
         # Run Rscript, passing all vars as args
-        for csvfile in "${projpath}csv_for_LEFse/*"; do
+        for csvfile in ${projpath}csv_for_LEFse/* ; do
             xbase=${csvfile##*/}
-            filePrefix=${xbase%.*}
-            Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${script_path} $csvfile $group_to_compare $finalOutputPath $filePrefix
+            xpref=${xbase%.*}
+            talkative "group_to_compare = ${LEFse_group_to_compare}"
+            talkative "xpref = ${xpref}"
+            Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${script_path} $csvfile $LEFse_group_to_compare $finalOutputPath $xpref
         done
 
         # Reactivate the conda env
         conda activate $condaenv
         echolog "${GREEN}    Finished LEFse table generation${NC}"
-        echolog "${GREEN}    Outputs are in ${qzaoutput2}csv_for_LEFse/${NC}"
+        echolog "${GREEN}    Outputs are in ${projpath}csv_for_LEFse/${NC}"
     fi
 done

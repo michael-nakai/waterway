@@ -19,7 +19,7 @@ do
         mkdir "${qzaoutput2}R_outputs/phyloseq_object" 2> /dev/null
 
         # Set all vars to pass to Rscript
-        script_path="${scriptdir}/R_scripts/raw/make_phyloseq.R"
+        script_path="${scriptdir}/src/R_scripts/raw/make_phyloseq.R"
         finalOutputPath="${qzaoutput2}R_outputs/phyloseq_object/"
         dTablePath="${qzaoutput2}table.qza"
         dRootedTree="${qzaoutput2}rooted-tree.qza"

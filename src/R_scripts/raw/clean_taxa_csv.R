@@ -6,7 +6,7 @@ library(tidyverse)
 #     1. path_to_csv = args[1]
 #     2. group_to_compare = args[2]
 #     3. pre_save_path = args[3] (should be specified as the output path in waterway, ending with a slash)
-#     4. filename = args[4]
+#     4. nameOfFile = args[4]
 # It should do the following:
 #     1. Replace all semicolons with pipes ( ; --> | ) in colnames that have k__ in them
 #     2. Remove all taxa level underscores (e.g. k__ , o__ , g__ , etc.)
@@ -22,14 +22,14 @@ args <- commandArgs(trailingOnly = TRUE)
 path_to_csv <- args[1]
 group_to_compare <- args[2]
 pre_save_path <- args[3]
-filename <- args[4]
+nameOfFile <- args[4]
 
 # I don't know why, but read.csv turns all semicolons into periods if you put them in the colnames, so I put them as the first row. [1,]
 # It's not documented anywhere. Why, R, why would you do this???
 origTable <- read.csv(path_to_csv, quote = "", header = FALSE)
 
 # Check that the group_to_compare exists in the first row. If not, error out
-if (! (group_to_compare in origTable[1,])) {
+if (! (group_to_compare %in% origTable[1,])) {
     message("The group ", group_to_compare, " was not found in the metadata file as a column name.")
     message("Please check that the name specified as group_to_compare in optional_analyses.txt")
     message("is exactly the same as the metadata column that you'd like to compare. This is caps sensitive.")
@@ -110,5 +110,5 @@ finalTable <- newTable %>%
     select(-c(columns_to_remove:ncol(newTable)))
 
 # Save the file
-save_path <- paste(pre_save_path, filename, "_LEFse_table.tsv", sep = "")
+save_path <- paste(pre_save_path, nameOfFile, "_LEFse_table.tsv", sep = "")
 write.table(finalTable, file = save_path, row.names = FALSE, col.names = TRUE, sep = "\t", na = "", quote = FALSE)

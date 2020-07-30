@@ -149,13 +149,21 @@ export -f errorlog
 #-----------------------------------------Main Function Start---------------------------------------
 #---------------------------------------------------------------------------------------------------
 
-# Get the conda commands (because they're not exported by default for some reason)
-if [ -f "/home/${USER}/miniconda3/etc/profile.d/conda.sh" ]; then
+# Get the conda commands (because they're not exported by default for some reason, which is dumb)
+condapath=$(conda info | grep -i 'base environment')
+condapath=${condapath//"base environment : "}
+condapath=${condapath//" (writable)"}
+condapath="$(echo -e "${condapath}" | tr -d '[:space:]')" # Gets rid of whitespace
+# The if and first elif are probably redundant, can remove both and just use the second elif to cover all cases 
+if [ -f "/home/${USER}/miniconda3/etc/profile.d/conda.sh" ]; then # Covers miniconda on lab server
 	source "/home/${USER}/miniconda3/etc/profile.d/conda.sh"
-	talkative "Sourced miniconda profile.d"
-elif [ -f "/home/${USER}/anaconda/etc/profile.d/conda.sh" ]; then
+	talkative "Sourced miniconda profile.d/conda.sh"
+elif [ -f "/home/${USER}/anaconda/etc/profile.d/conda.sh" ]; then # Covers anaconda on lab server
 	source "/home/${USER}/anaconda/etc/profile.d/conda.sh"
-	talkative "Sourced anaconda profile.d"
+	talkative "Sourced anaconda profile.d/conda.sh"
+elif [ -f "${condapath}/etc/profile.d/conda.sh" ]; then
+	source "${condapath}/etc/profile.d/conda.sh"
+	talkative "Sourced profile.d/conda.sh"
 fi
 
 # Finding the current conda environment (used in beta analysis, continuous vars)
@@ -189,9 +197,6 @@ talkative "condaenv = $condaenv"
 if [ "$exitnow" = true ]; then
 	exit 0
 fi
-
-# Updates the analysis file from the old version (changes variable names)
-sed -i -r 's+run_ancom_composition+make_collapsed_table+g' $analysis_path 2> /dev/null
 
 # Source the files
 source $srcpath 2> /dev/null
