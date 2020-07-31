@@ -17,7 +17,7 @@ if [ ! -f $analysis_path ]; then
 	echo -e "extended_alpha=false\n" >> optional_analyses.txt
 	
 	echo -e "### Beta rarefaction" >> optional_analyses.txt
-	echo -e "rerun_beta_rarefaction=false\n" >> optional_analyses.txt
+	echo -e "rerun_beta_rarefaction=false" >> optional_analyses.txt
 	echo -e "rarefaction_groups=('Group1' 'Group2' 'etc...')\n" >> optional_analyses.txt
 	
 	echo -e "### Beta analysis for categorical variables" >> optional_analyses.txt
