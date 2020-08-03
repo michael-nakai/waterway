@@ -39,7 +39,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="3.1.1"
+version="3.2.0"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -355,6 +355,9 @@ echolog ""
 # >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (NESTED CROSS VALIDATION) >>>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/sampleclassifier_ncv.bash
 
+# >>>>>>>>>>>>>>>> LONGITUDINAL >>>>>>>>>>>>>>>>
+. ${scriptdir}/src/optionals/longitudinal.bash
+
 # >>>>>>>>>>>>>> PICRUST2 >>>>>>>>>>>>>>
 . ${scriptdir}/src/optionals/picrust2.bash
 
@@ -405,6 +408,9 @@ echolog ""
 
 # >>>>>>>>>>>>>>>> SAMPLE CLASSIFIER (NESTED CROSS VALIDATION) >>>>>>>>>>>>>>>
 . ${scriptdir}/src/subsets/optionals/sampleclassifier_ncv.bash
+
+# >>>>>>>>>>>>>>>> LONGITUDINAL >>>>>>>>>>>>>>>>
+. ${scriptdir}/src/subsets/optionals/longitudinal.bash
 
 # >>>>>>>>>>>>>> PICRUST2 >>>>>>>>>>>>>>
 . ${scriptdir}/src/subsets/optionals/picrust2.bash

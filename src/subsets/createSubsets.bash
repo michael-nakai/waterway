@@ -54,7 +54,7 @@ if [[ "$subset" = true ]] ; then
                 subsetdir="${qzaoutput2}subsets/$filterfile"
                 
                 # Filter table.qza and rep-seqs.qza for files in filter_inputs
-                echolog "Starting ${CYAN}feature-table filter-samples${NC} for ${BMAGENTA}${filterfile}${NC}"
+                echolog "Starting ${CYAN}feature-table filter-samples${NC} for ${BMAGENTA}${fileToFilter}${NC}"
 
                 qiime feature-table filter-samples \
                     --i-table $input \

@@ -89,6 +89,18 @@ if [ ! -f $analysis_path ]; then
 	echo -e "test_proportion_continuous=0.2 #Do not change unless needed" >> optional_analyses.txt
 	echo -e "number_of_trees_to_grow_continuous=100 #Do not change unless needed" >> optional_analyses.txt
 	echo -e "palette_continuous='sirocco' #Do not change unless needed\n" >> optional_analyses.txt
+
+	echo -e "### Settings for q2-longitudinal for pairwise difference and distance comparisons" >> optional_analyses.txt
+	echo -e "# NOTE: the time column must only contain numbers (numeric)" >> optional_analyses.txt
+	echo -e "run_longitudinal=false" >> optional_analyses.txt
+	echo -e "group_to_compare_longitudinal=(group1 group2)" >> optional_analyses.txt
+	echo -e "time_column=timeColumn" >> optional_analyses.txt
+	echo -e "sample_id_column_name=sampleid" >> optional_analyses.txt
+	echo -e "inital_time=0" >> optional_analyses.txt
+	echo -e "final_time=0" >> optional_analyses.txt
+	echo -e "linear_mixed_effects_groups='group1,group2,group3' # These should be fixed effects" >> optional_analyses.txt
+	echo -e "random_effects_groups='group1,group2,group3'" >> optional_analyses.txt
+	echo -e "\n" >> optional_analyses.txt
 	
 	echo -e "### Gneiss gradient-clustering analyses" >> optional_analyses.txt
 	echo -e "run_gneiss=false" >> optional_analyses.txt
