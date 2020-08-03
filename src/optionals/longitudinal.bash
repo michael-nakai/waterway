@@ -17,7 +17,7 @@ if [ "$run_longitudinal" = true ] && [ "$sklearn_done" = true ]; then
 
             mkdir "${qzaoutput2}q2_longitudinal_outputs/${group}" 2> /dev/null
 		
-            echolog "Running ${CYAN}pairwise differences${NC} using ${BMAGENTA}shannon diversity${NC}"
+            echolog "Running ${CYAN}pairwise differences${NC} using ${BMAGENTA}shannon diversity${NC} for ${BMAGENTA}${group}${NC}"
 
             qiime longitudinal pairwise-differences \
                 --m-metadata-file $metadata_filepath \
@@ -63,15 +63,27 @@ if [ "$run_longitudinal" = true ] && [ "$sklearn_done" = true ]; then
 
         echolog "Running ${CYAN}linear mixed effect model generation${NC} using ${BMAGENTA}shannon diversity${NC}"
 
-        qiime longitudinal linear-mixed-effects \
+        if [ "$random_effects_groups" = '' ]; then
+            qiime longitudinal linear-mixed-effects \
             --m-metadata-file $metadata_filepath \
             --m-metadata-file "${qzaoutput2}core-metrics-results/shannon_vector.qza" \
             --p-metric "shannon" \
             --p-group-columns $linear_mixed_effects_groups \
-            --p-random-effects $random_effects_groups \
             --p-state-column $time_column \
             --p-individual-id-column $sample_id_column_name \
             --o-visualization "${qzaoutput2}q2_longitudinal_outputs/linear-mixed-effects.qzv"
+
+        else
+            qiime longitudinal linear-mixed-effects \
+                --m-metadata-file $metadata_filepath \
+                --m-metadata-file "${qzaoutput2}core-metrics-results/shannon_vector.qza" \
+                --p-metric "shannon" \
+                --p-group-columns $linear_mixed_effects_groups \
+                --p-random-effects $random_effects_groups \
+                --p-state-column $time_column \
+                --p-individual-id-column $sample_id_column_name \
+                --o-visualization "${qzaoutput2}q2_longitudinal_outputs/linear-mixed-effects.qzv"
+        fi
         
         echolog "    ${GREEN}Finished linear model generation${NC}"
 
@@ -170,5 +182,7 @@ if [ "$run_longitudinal" = true ] && [ "$sklearn_done" = true ]; then
         logger "Copying files to all_outputs folder"
         cp "${qzaoutput2}q2_longitudinal_outputs/*/*.qzv" "${qzaoutput2}q2_longitudinal_outputs/all_outputs/"
         logger "Copying finished"
+        echolog "    ${GREEN}Finished q2-longitudinal analysis"
+        echolog ""
     done
 fi

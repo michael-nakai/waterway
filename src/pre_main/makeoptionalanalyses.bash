@@ -96,10 +96,10 @@ if [ ! -f $analysis_path ]; then
 	echo -e "group_to_compare_longitudinal=(group1 group2)" >> optional_analyses.txt
 	echo -e "time_column=timeColumn" >> optional_analyses.txt
 	echo -e "sample_id_column_name=sampleid" >> optional_analyses.txt
-	echo -e "inital_time=0" >> optional_analyses.txt
+	echo -e "initial_time=0" >> optional_analyses.txt
 	echo -e "final_time=0" >> optional_analyses.txt
 	echo -e "linear_mixed_effects_groups='group1,group2,group3' # These should be fixed effects" >> optional_analyses.txt
-	echo -e "random_effects_groups='group1,group2,group3'" >> optional_analyses.txt
+	echo -e "random_effects_groups='group1,group2,group3' # If none exist, set to ''" >> optional_analyses.txt
 	echo -e "\n" >> optional_analyses.txt
 	
 	echo -e "### Gneiss gradient-clustering analyses" >> optional_analyses.txt
