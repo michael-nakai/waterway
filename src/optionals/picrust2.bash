@@ -46,14 +46,19 @@ if [ "$run_picrust" = true ] && [ "$sklearn_done" = true ]; then
 		echolog "${GREEN}    Finished core-metrics generation${NC}"
 		echolog "Starting ${CYAN}export to tsv${NC}"
 
-		qiime tools export \
-			--input-path "${qzaoutput2}q2-picrust2_output/pathway_abundance.qza" \
-			--output-path "${qzaoutput2}q2-picrust2_output/exported_tsv"
+		totallist=('pathway_abundance' 'ec_metagenome' 'ko_metagenome')
+		for vari in ${totallist[@]}
+		do
 
-		biom convert \
-			-i "${qzaoutput2}q2-picrust2_output/exported_tsv/feature-table.biom" \
-			-o "${qzaoutput2}q2-picrust2_output/exported_tsv/feature-table.tsv" \
-			--to-tsv
+			qiime tools export \
+				--input-path "${qzaoutput2}q2-picrust2_output/${vari}.qza" \
+				--output-path "${qzaoutput2}q2-picrust2_output/${vari}"
+
+			biom convert \
+				-i "${qzaoutput2}q2-picrust2_output/${vari}/feature-table.biom" \
+				-o "${qzaoutput2}q2-picrust2_output/${vari}/${vari}.tsv" \
+				--to-tsv
+		done
 
 		echolog "${GREEN}    Finished exporting${NC}"
 	done

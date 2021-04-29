@@ -74,6 +74,9 @@ do
 		echo ""
 		exit 0
 	fi
+	if [ "$op" == "--add-waterway" ] ; then
+		add_command=true
+	fi
 	if [ "$op" == "--devtest" ] ; then
 		devtest=true
 	fi

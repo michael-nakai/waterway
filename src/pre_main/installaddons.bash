@@ -14,3 +14,8 @@ if [[ "$install_tidyverse" = true ]] ; then
 	exitnow=true
 	conda install -c r r-tidyverse
 fi
+
+if [[ "$add_command" = true ]] ; then
+	. ${scriptdir}/src/pre_main/add_to_bashrc.bash
+	exit
+fi

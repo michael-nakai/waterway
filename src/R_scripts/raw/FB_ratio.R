@@ -13,7 +13,7 @@ library('phyloseq')
 # 3. rawMetadataCols      <-- a comma-separated string of categorical metadata columns to compare F:B ratios between
 
 # Helper empty function for TODO sections
-foo <- function(asdfff){
+pass <- function(asdf){
     invisible()
 }
 
@@ -189,7 +189,7 @@ for (metaColName in metadataCols) {
     #-- TODO
     # Run ANOVA between values IF length of bigMetaGroups[[metaColName]] is greater than 2
     if (length(bigMetaGroups[[metaColName]]) > 2) {
-        foo(100)
+        pass()
     }
 
 }

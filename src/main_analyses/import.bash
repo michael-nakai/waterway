@@ -5,7 +5,7 @@ if [ "$import_done" = false ]; then
 	echolog ""
 	echolog "Starting import block..."
 	
-	#If no manifest file, we import via normal filepath
+	# If no manifest file, we import via normal filepath
 	if [ "$manifest_status" = false ]; then
 		
 		echolog "Starting ${CYAN}qiime tools import${NC}"
@@ -20,7 +20,7 @@ if [ "$import_done" = false ]; then
 		
 	fi
 	
-	#If manifest was set to true, we import via the manifest path
+	# If manifest was set to true, we import via the manifest path
 	if [ "$manifest_status" = true ]; then
 		
 		echolog "Starting ${CYAN}qiime tools import${NC} using a manifest file"
@@ -37,7 +37,7 @@ if [ "$import_done" = false ]; then
 	echolog "${GREEN}    Finished importing to qza${NC}"
 fi
 
-#This will output a sequence quality visualization based on 10,000 randomly selected reads
+# This will output a sequence quality visualization based on 10,000 randomly selected reads
 if [ "$importvis_done" = false ]; then
 
 	echolog "Starting ${CYAN}qiime demux summarize${NC}"

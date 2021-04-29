@@ -2,7 +2,7 @@
 
 if [ "$divanalysis_done" = false ]; then
 
-	#Break here if sampling_depth is 0
+	# Break here if sampling_depth is 0
 	if [ $sampling_depth -eq 0 ] ; then
 		errorlog "${RED}Sampling depth not set${NC}"
 		if [[ "$log" = true ]]; then
@@ -14,12 +14,12 @@ if [ "$divanalysis_done" = false ]; then
 	for fl in ${qzaoutput}*/table.qza
 	do
 	
-		#Defining qzaoutput2
+		# Defining qzaoutput2
 		qzaoutput2=${fl%"table.qza"}
 		
 		echolog "Starting ${CYAN}core-metrics phylogenetic${NC}"
 		
-		#Passing the rooted-tree.qza generated through core-metrics-phylogenetic
+		# Passing the rooted-tree.qza generated through core-metrics-phylogenetic
 		qiime diversity core-metrics-phylogenetic \
 			--i-phylogeny "${qzaoutput2}rooted-tree.qza" \
 			--i-table "${qzaoutput2}table.qza" \

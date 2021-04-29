@@ -7,12 +7,12 @@ if [ "$tree_done" = false ]; then
 	for fl in ${qzaoutput}*/table.qza
 	do
 	
-		#Defining qzaoutput2
+		# Defining qzaoutput2
 		qzaoutput2=${fl%"table.qza"}
 		
 		echolog "Starting ${CYAN}align-to-tree-mafft-fasttree${NC}..."
 		
-		#First we generate the trees for use in later diversity measurements
+		# First we generate the trees for use in later diversity measurements
 		qiime phylogeny align-to-tree-mafft-fasttree \
 			--i-sequences "${qzaoutput2}rep-seqs.qza" \
 			--o-alignment "${qzaoutput2}aligned-rep-seqs.qza" \
@@ -21,6 +21,6 @@ if [ "$tree_done" = false ]; then
 			--o-rooted-tree "${qzaoutput2}rooted-tree.qza"
 	done
 
-	echolog "${GREEN}    Finished trees${NC}"
+	echolog "${GREEN}    Finished phylogeny tree generation${NC}"
 	
 fi

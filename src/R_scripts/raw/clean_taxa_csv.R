@@ -110,5 +110,5 @@ finalTable <- newTable %>%
     select(-c(columns_to_remove:ncol(newTable)))
 
 # Save the file
-save_path <- paste(pre_save_path, nameOfFile, "_LEFse_table.tsv", sep = "")
+save_path <- paste(pre_save_path, nameOfFile, "_LEFse_table.txt", sep = "")
 write.table(finalTable, file = save_path, row.names = FALSE, col.names = TRUE, sep = "\t", na = "", quote = FALSE)

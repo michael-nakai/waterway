@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Check whether classifier path refers to an actual file or not
+# Check whether classifier path refers to an actual file or not
 if [ ! -f $classifierpath ] ; then
 	echo -e "${RED}File does not exist at the classifier path${NC}"
 	echo -e "${RED}Please change classifier path in config.txt${NC}"
@@ -16,12 +16,12 @@ if [ "$sklearn_done" = false ]; then
 
 	for repqza in ${qzaoutput}*/rep-seqs.qza
 	do
-		#Defining qzaoutput2
+		# Defining qzaoutput2
 		qzaoutput2=${repqza%"rep-seqs.qza"}
 		
 		echolog "Starting ${CYAN}classify-sklearn${NC} for ${BMAGENTA}$repqza${NC}"
 
-		#Sklearn here
+		# Sklearn here
 		qiime feature-classifier classify-sklearn \
 			--i-classifier $classifierpath \
 			--i-reads "${qzaoutput2}rep-seqs.qza" \
@@ -30,7 +30,7 @@ if [ "$sklearn_done" = false ]; then
 		echolog "${GREEN}    Finished classify-sklearn ${NC}"
 		echolog "Starting ${CYAN}qiime metadata tabulate${NC}"
 
-		#Summarize and visualize
+		# Summarize and visualize
 		qiime metadata tabulate \
 			--m-input-file "${qzaoutput2}taxonomy.qza" \
 			--o-visualization "${qzaoutput2}taxonomy.qzv"

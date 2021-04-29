@@ -4,7 +4,7 @@ if [ "$dada2_done" = false ]; then
 	echolog ""
 	echolog "Starting Dada2 block..."
 
-	#Break here if Dada2 options haven't been set
+	# Break here if Dada2 options haven't been set
 	if [ ${#truncF[@]} -eq 0 ]; then 
 		errorlog "${RED}Forward read truncation not set, exiting...${NC}"
 		if [[ "$log" = true ]]; then
@@ -20,7 +20,7 @@ if [ "$dada2_done" = false ]; then
 		exit 11
 	fi
 	
-	#Make dirs for all combinations of truncF and truncR so dada2 can output in them
+	# Make dirs for all combinations of truncF and truncR so dada2 can output in them
 	for e in ${truncF[@]}
 	do
 		for e2 in ${truncR[@]}
@@ -29,7 +29,7 @@ if [ "$dada2_done" = false ]; then
 		done
 	done
 
-	#This will take the demux-paired-end.qza from multiplex_seq_import.bash and push it through dada2 denoise-paired
+	# This will take the demux-paired-end.qza from multiplex_seq_import.bash and push it through dada2 denoise-paired
 	for element in ${truncF[@]}
 	do
 		for element2 in ${truncR[@]}
@@ -39,8 +39,8 @@ if [ "$dada2_done" = false ]; then
 			
 			qiime dada2 denoise-paired \
 				--i-demultiplexed-seqs $demuxpairedendpath \
-				--p-trim-left-f $trimR \
-				--p-trim-left-r $trimF \
+				--p-trim-left-f $trimF \
+				--p-trim-left-r $trimR \
 				--p-trunc-len-f $element \
 				--p-trunc-len-r $element2 \
 				--o-table "${qzaoutput}${element}-${element2}/table.qza" \
@@ -63,7 +63,7 @@ if [ "$dada2_done" = false ]; then
 				--m-input-file "${qzaoutput}${element}-${element2}/denoising-stats.qza" \
 				--o-visualization "${qzaoutput}${element}-${element2}/denoising-stats.qzv"
 
-			#Checks if denoising worked or whether pairing up ends failed due to low overlap
+			# Checks if denoising worked or whether pairing up ends failed due to low overlap
 			if [ ! -f "${qzaoutput}${element}-${element2}/rep-seqs.qza" ]; then
 				echo "No output" > "${qzaoutput}${element}-${element2}/NoOutput.txt"
 				

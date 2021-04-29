@@ -62,7 +62,7 @@ if [[ "$run_ancom" = true && "$sklearn_done" = true ]] ; then
 		done
 
 		# Run the ANCOM, per $group, per collapsed level
-		# Remember, $group_to_compare is an ARRAY, while $group is a single ELEMENT of the array
+		# Remember, $group_to_compare is an ARRAY, while $group is a single ELEMENT of the array (I was an idiot)
 		for group in "${group_to_compare[@]}"
 		do
 			for element in "${collapse_taxa_to_level[@]}"
