@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --qos=normal
 
-# Created by Michael Nakai, 22/01/2019 for command line Bash or use with the SLURM job management software.
+# Created by Michael Nakai, 22/01/2019 for command line Bash or use with the SLURM job management software on M3.
 # If you are running waterway on SLURM, change the account and partition to yours respectively.
 
 export LC_ALL="en_US.utf-8"
@@ -39,7 +39,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="3.2.0"
+version="3.2.1"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
