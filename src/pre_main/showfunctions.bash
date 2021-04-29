@@ -2,7 +2,7 @@
 
 if [[ "$show_functions" = true ]] ; then
 	echo -e ""
-	echo -e "Functions used in this script:"
+	echo -e "Functions used in the main script:"
 	echo -e ""
 	echo -e "---Import Block---"
 	echo -e "1a. qiime tools import (Paired end, Cassava 1.8)"
