@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job-name=waterway
-#SBATCH --account=dw30
+#SBATCH --account=
 #SBATCH --time=168:00:00
-#SBATCH --partition=m3a
+#SBATCH --partition=
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=4096
 #SBATCH --cpus-per-task=8
@@ -11,6 +11,7 @@
 # Created by Michael Nakai, 22/01/2019 for command line Bash or use with the SLURM job management software on M3.
 # If you are running waterway on SLURM, change the account and partition to yours respectively.
 
+# Some SLURM setups require these lines, otherwise should be harmless
 export LC_ALL="en_US.utf-8"
 export LANG="en_US.utf-8"
 
@@ -154,6 +155,7 @@ condapath=$(conda info | grep -i 'base environment')
 condapath=${condapath//"base environment : "}
 condapath=${condapath//" (writable)"}
 condapath="$(echo -e "${condapath}" | tr -d '[:space:]')" # Gets rid of whitespace
+
 # The if and first elif are probably redundant, can remove both and just use the second elif to cover all cases 
 if [ -f "/home/${USER}/miniconda3/etc/profile.d/conda.sh" ]; then # Covers miniconda on lab server
 	source "/home/${USER}/miniconda3/etc/profile.d/conda.sh"
@@ -202,7 +204,7 @@ fi
 source $srcpath 2> /dev/null
 source $analysis_path 2> /dev/null
 
-# Define solid, unmoving variables
+# Define "immutable" variables (they're actually mutable, but shouldn't be changed)
 demuxpairedendpath=${qzaoutput}imported_seqs.qza
 metadata_basename=$(basename $metadata_filepath)
 orig_metadata_filepath=$metadata_filepath
@@ -420,10 +422,6 @@ echolog ""
 
 # >>>>>>>>>>>>>>> BIOENV >>>>>>>>>>>>>>>>
 . ${scriptdir}/src/subsets/optionals/bioenv.bash
-
-
-# >>>>>>>>>>>>>> SORT AND OUTPUT >>>>>>>>>>>>>>>>>>>>>>>
-# TODO: Add all qza and qzv files produced to two different folders inside the truncF-truncR folders
 
 
 # >>>>>>>>>>>>>>> ENDING >>>>>>>>>>>>>>>

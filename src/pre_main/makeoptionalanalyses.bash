@@ -13,7 +13,7 @@ if [ ! -f $analysis_path ]; then
 	echo -e "cleanup_csv_for_LEFse=false" >> optional_analyses.txt
 	echo -e "LEFse_group_to_compare=ExampleGroup\n" >> optional_analyses.txt
 
-	echo -e "### Extended alpha diversity metrics" >> optional_analyses.txt
+	echo -e "### Extended alpha diversity metrics (non-rarefied)" >> optional_analyses.txt
 	echo -e "extended_alpha=false\n" >> optional_analyses.txt
 	
 	echo -e "### Beta rarefaction" >> optional_analyses.txt
