@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --qos=normal
 
-# Created by Michael Nakai, 22/01/2019 for command line Bash or use with the SLURM job management software on M3.
+# Created by Michael Nakai, 22/01/2019 for Bash or use with SLURM.
 # If you are running waterway on SLURM, change the account and partition to yours respectively.
 
 # Some SLURM setups require these lines, otherwise should be harmless
