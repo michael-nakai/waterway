@@ -46,10 +46,12 @@ do
                 Rscript --default-packages=methods,datasets,utils,grDevices,graphics,stats ${script_path} $tablefile $group $finalOutputPath $xpref $database_type_used
                 talkative "Finished ${BMAGENTA}$group${NC} for ${BMAGENTA}${xpref}${NC}"
             done
-
+            
+            
             echolog "Finished all groups for ${BMAGENTA}${tablefile}${NC}\n"
         done
 
+        conda activate $condaenv
         echolog "    ${GREEN}Finished LEfSe table generation for the main dataset${NC}\n"
     fi
 done

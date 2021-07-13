@@ -50,8 +50,11 @@ if [ "$subset" = true ] && [ "$generate_lefse_tables" = true ]; then
                     talkative "Finished ${BMAGENTA}$group${NC} for ${BMAGENTA}${xpref}${NC}"
                 done
 
+                
                 echolog "Finished all groups for ${BMAGENTA}${tablefile}${NC}\n"
             done
+
+            conda activate $condaenv
         fi
     done
 
