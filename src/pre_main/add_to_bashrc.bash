@@ -7,11 +7,11 @@ read -p "This will create the command 'waterway' to run waterway.bash. Continue?
 if [ $answer == "y" ]; then
     echo "alias waterway='bash ${scriptdir}/waterway.bash'" >> ~/.bashrc
     echo 'complete -W "-v --verbose -l --log -m --manifest -h --help -t --test -f --show-functions -c --train-classifier -s --subsets -g --graphs -M --make-manifest -F --fastqc -r --remove-underscores -T --filter-table --install-deicode --install-picrust -n --version --devtest" waterway' >> ~/.bashrc
-    alias waterway="bash ${scriptdir}/waterway.bash"
-    complete -W "-v --verbose -l --log -m --manifest -h --help -t --test -f --show-functions -c --train-classifier -s --subsets -g --graphs -M --make-manifest -F --fastqc -r --remove-underscores -T --filter-table --install-deicode --install-picrust -n --version --devtest" waterway
+    echo "Configuration finished! Please restart bash via the command: bash"
 elif [ $answer == "test" ]; then
     echo "alias waterway='bash ${scriptdir}/waterway.bash'"
     echo 'complete -W "-v --verbose -l --log -m --manifest -h --help -t --test -f --show-functions -c --train-classifier -s --subsets -g --graphs -M --make-manifest -F --fastqc -r --remove-underscores -T --filter-table --install-deicode --install-picrust -n --version --devtest" waterway'
+    echo 'Test finished!'
 else
     echo "Exiting without adding command..."
     exit
