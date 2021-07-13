@@ -9,9 +9,10 @@ if [ ! -f $analysis_path ]; then
 	
 	touch optional_analyses.txt
 	
-	echo -e "### If you download a taxa_bar_plots csv for LEFse, run this first on it" >> optional_analyses.txt
-	echo -e "cleanup_csv_for_LEFse=false" >> optional_analyses.txt
-	echo -e "LEFse_group_to_compare=ExampleGroup\n" >> optional_analyses.txt
+	echo -e "### Generate LEfSe tables using settings from config.txt" >> optional_analyses.txt
+	echo -e "generate_lefse_tables=false" >> optional_analyses.txt
+	echo -e "database_type_used='SILVA' # Accepts either SILVA or GreenGenes" >> optional_analyses.txt
+	echo -e "LEfSe_groups_to_compare=() # The columns of your metadata to separate your tables by, by name\n" >> optional_analyses.txt
 
 	echo -e "### Extended alpha diversity metrics (non-rarefied)" >> optional_analyses.txt
 	echo -e "extended_alpha=false\n" >> optional_analyses.txt

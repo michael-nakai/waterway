@@ -23,5 +23,5 @@ if [ "$run_bioenv" = true ] && [ "$sklearn_done" = true ]; then
 else
 	talkative "${YELLOW}Either bioenv is set to false, or taxonomic analyses${NC}"
 	talkative "${YELLOW}have not been completed on the dataset. Bioenv analysis${NC}"
-	talkative "${YELLOW}will not proceed.${NC}"
+	talkative "${YELLOW}will not proceed.${NC}\n"
 fi

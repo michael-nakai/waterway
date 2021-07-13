@@ -99,5 +99,5 @@ if [[ "$run_ancom" = true && "$subset" = true ]] ; then
 else
 	talkative "${YELLOW}Either run_ancom is set to false, or taxonomic analyses${NC}"
 	talkative "${YELLOW}have not been completed on the dataset. Ancom analysis${NC}"
-	talkative "${YELLOW}will not proceed.${NC}"
+	talkative "${YELLOW}will not proceed.${NC}\n"
 fi

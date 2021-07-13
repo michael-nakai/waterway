@@ -20,6 +20,8 @@ if [ "$tst" = true ] || [ "$verbose" = true ]; then
 	talkative "divanalysis_done is ${BMAGENTA}${divanalysis_done}${NC}"
 	talkative "sklearn_done is ${BMAGENTA}${sklearn_done}${NC}"
 	talkative ""
+	talkative "subset is ${BMAGENTA}${subset}${NC}"
+	talkative ""
 	
 	#If -t was set, exit here
 	if [[ "$tst" = true ]]; then

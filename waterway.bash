@@ -40,7 +40,7 @@ if ! type "qiime" > /dev/null 2>&1; then
 fi
 
 # Version number here
-version="3.2.1"
+version="3.3"
 
 # Finding Qiime2 version number
 q2versionnum=$(qiime --version)
@@ -312,11 +312,11 @@ echolog ""
 ### All code after this point will only be executed after the main analyses block is completed
 ### ONE TIME EXECUTION
 
-# LEFse table generation
-. ${scriptdir}/src/R_scripts/bash/run_clean_taxa_csv.bash
-
 
 ### NORMAL EXECUTION
+
+# Generate tables for LEfSe
+. ${scriptdir}/src/optionals/LEfSe_table.bash
 
 # Rerun alpha diversity (if needed for some reason)
 . ${scriptdir}/src/optionals/extendedalpha.bash
@@ -371,6 +371,9 @@ echolog ""
 
 
 ### SUBSET EXECUTION
+
+# Generate tables for LEfSe
+. ${scriptdir}/src/subsets/optionals/LEfSe_table_subsets.bash
 
 # Rerun alpha diversity (if needed for some reason)
 . ${scriptdir}/src/subsets/optionals/extendedalpha.bash

@@ -12,7 +12,7 @@ rename_files=false
 install_deicode=false
 install_picrust=false
 filter=false
-include_subsets=false
+subset=false
 graphs=false # Currently does nothing
 devtest=false # This is for anything I want to test
 
