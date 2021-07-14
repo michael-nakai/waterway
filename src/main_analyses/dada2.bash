@@ -47,7 +47,21 @@ if [ "$dada2_done" = false ]; then
 				--o-representative-sequences "${qzaoutput}${element}-${element2}/rep-seqs.qza" \
 				--o-denoising-stats "${qzaoutput}${element}-${element2}/denoising-stats.qza"
 			
-			echolog "${GREEN}Dada2 of ${element}-${element2} done, progressing to summarization${NC}"
+			echolog "${GREEN}Dada2 of ${element}-${element2} done, progressing to filtering${NC}"
+
+			mv "${qzaoutput}${element}-${element2}/table.qza" "${qzaoutput}${element}-${element2}/oldtable.qza"
+
+			qiime feature-table filter-features \
+  				--i-table "${qzaoutput}${element}-${element2}/oldtable.qza" \
+  				--p-min-frequency 2 \
+  				--o-filtered-table "${qzaoutput}${element}-${element2}/oldtable2.qza"
+
+			qiime feature-table filter-features \
+				--i-table "${qzaoutput}${element}-${element2}/oldtable2.qza" \
+				--p-min-samples 2 \
+				--o-filtered-table "${qzaoutput}${element}-${element2}/table.qza"
+
+			echolog "${GREEN}Finished removing singletons and features only seen in one sample${NC}"
 			echolog "Starting ${CYAN}feature-table summarize, tabulate-seqs, and metadata tabulate${NC}"
 
 			qiime feature-table summarize \
