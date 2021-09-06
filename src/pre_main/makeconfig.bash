@@ -33,17 +33,10 @@ if [ ! -f $srcpath ]; then
 	echo -e "### Determine what group you'd like to compare between for beta diversity. It needs to match the group name in the metadata exactly, caps sensitive." >> config.txt
 	echo -e "beta_diversity_group=Group_Here\n" >> config.txt
 	
-	echo -e "### Input what your missing samples are marked with (if anything)" >> config.txt
-	echo -e "missing_samples= #What your missing samples are labelled as (ex: NA, none, missing)\n" >> config.txt
+	echo -e "### What your missing samples are labelled as (ex: NA, none, missing)" >> config.txt
+	echo -e "### If you've just left them blank, then leave the option as a string of gibberish" >> config.txt
+	echo -e "missing_samples=SDFLKJSDLGKSDJG \n" >> config.txt
 	
 	echo -e "### Path to the trained classifier for sk-learn" >> config.txt
 	echo -e "classifierpath=/home/username/classifier.qza\n" >> config.txt
-
-	echo -e "### Set these settings if training a GreenGenes classifier" >> config.txt
-	echo -e "download_greengenes_files_for_me=false" >> config.txt
-	echo -e "greengenes_path=/home/username/dir_containing_greengenes_files/" >> config.txt
-	echo -e "forward_primer=GGGGGGGGGGGGGGGGGG" >> config.txt
-	echo -e "reverse_primer=AAAAAAAAAAAAAAAAAA" >> config.txt
-	echo -e "min_read_length=100" >> config.txt
-	echo -e "max_read_length=400" >> config.txt
 fi
